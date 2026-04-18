@@ -4,8 +4,10 @@ export class Phase1 extends Phaser.Scene {
     }
 
     preload() {
-        // Fundo
-        this.load.image("phase1Bg", "assets/phase1/cenario1.jpg");
+        // Fundo principal
+        this.load.image("phase1Bg1", "assets/phase1/cenario1.jpg");
+        this.load.image("phase1Bg2", "assets/phase1/cenario2.jpg");
+        this.load.image("phase1Bg3", "assets/phase1/cenario3.jpg");
 
         // HUD / Leona
         this.load.image("heroPortrait", "assets/player/portrait.png");
@@ -26,9 +28,8 @@ export class Phase1 extends Phaser.Scene {
         this.load.image("leona_death1", "assets/player/death1.png");
         this.load.image("leona_death2", "assets/player/death2.png");
 
-        // Inimigo
+        // Inimigo comum
         this.load.image("enemy_idle", "assets/Enemy 1/idle.png");
-
         this.load.image("enemy_walk1", "assets/Enemy 1/walking1.png");
         this.load.image("enemy_walk2", "assets/Enemy 1/walking2.png");
         this.load.image("enemy_walk3", "assets/Enemy 1/walking3.png");
@@ -43,6 +44,21 @@ export class Phase1 extends Phaser.Scene {
         this.load.image("enemy_damage", "assets/Enemy 1/damage.png");
         this.load.image("enemy_death1", "assets/Enemy 1/death1.png");
         this.load.image("enemy_death2", "assets/Enemy 1/death2.png");
+
+        // Boss
+        this.load.image("boss_idle_base", "assets/Boss/Base.png");
+        this.load.image("boss_walk1", "assets/Boss/walking1.png");
+        this.load.image("boss_walk2", "assets/Boss/walking2.png");
+        this.load.image("boss_walk3", "assets/Boss/walking3.png");
+        this.load.image("boss_walk4", "assets/Boss/walking4.png");
+        this.load.image("boss_walk5", "assets/Boss/walking5.png");
+        this.load.image("boss_walk6", "assets/Boss/walking6.png");
+        this.load.image("boss_punch1", "assets/Boss/punch1.png");
+        this.load.image("boss_punch2", "assets/Boss/punch2.png");
+        this.load.image("boss_damage", "assets/Boss/damage1.png");
+        this.load.image("boss_death1", "assets/Boss/death1.png");
+        this.load.image("boss_death2", "assets/Boss/death2.png");
+        this.load.image("bossPortrait", "assets/Boss/iconboss1.png");
 
         // Áudios
         this.load.audio("phaseMusic", [
@@ -70,6 +86,9 @@ export class Phase1 extends Phaser.Scene {
             "assets/audio/death.ogg"
         ]);
 
+        this.load.audio("sfxEnemyDamage", "assets/audio/damage_enemy.mp3");
+        this.load.audio("sfxBossDeath", "assets/audio/death_enemy.mp3");
+
         this.load.audio("sfxVictory", [
             "assets/audio/victory.mp3",
             "assets/audio/victory.ogg"
@@ -77,7 +96,7 @@ export class Phase1 extends Phaser.Scene {
     }
 
     create() {
-        this.worldWidth = 1280;
+        this.worldWidth = 4200;
         this.worldHeight = 720;
 
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
@@ -86,27 +105,86 @@ export class Phase1 extends Phaser.Scene {
         this.levelComplete = false;
         this.isGameEnding = false;
         this.playerDeathPlayed = false;
-
-        this.totalEnemiesToSpawn = 5;
-        this.spawnedEnemies = 0;
-        this.enemiesDefeated = 0;
-        this.maxEnemiesOnScreen = 2;
-
-        this.enemySpawnMinY = 580;
-        this.enemySpawnMaxY = 635;
+        this.lastDamageSourceX = null;
 
         this.alturaPlayer = 180;
         this.alturaEnemy = 165;
+        this.alturaBoss = 220;
 
         this.enemies = [];
+        this.boxes = [];
+        this.items = [];
+        this.boss = null;
 
+        this.currentWaveIndex = -1;
+        this.waveActive = false;
+        this.currentLimitX = this.worldWidth - 40;
+
+        this.bossIntroStarted = false;
+        this.bossIntroActive = false;
+        this.bossDialogActive = false;
+        this.bossApproachActive = false;
+        this.bossIntroIndex = 0;
+        this.bossFightStarted = false;
+        this.pendingBossConfig = null;
+        this.bossDialogos = [];
+
+        this.waveConfigs = [
+            {
+                tipo: "wave",
+                titulo: "BATALHA 1",
+                triggerX: 650,
+                blockX: 980,
+                enemies: [
+                    { x: 1020, y: 610 },
+                    { x: 1160, y: 635 }
+                ],
+                boxes: [
+                    { x: 930, y: 635 }
+                ]
+            },
+            {
+                tipo: "wave",
+                titulo: "BATALHA 2",
+                triggerX: 1650,
+                blockX: 2050,
+                enemies: [
+                    { x: 2100, y: 590 },
+                    { x: 2260, y: 630 }
+                ],
+                boxes: [
+                    { x: 1980, y: 635 }
+                ]
+            },
+            {
+                tipo: "wave",
+                titulo: "BATALHA 3",
+                triggerX: 2650,
+                blockX: 3050,
+                enemies: [
+                    { x: 3110, y: 600 },
+                    { x: 3250, y: 635 }
+                ],
+                boxes: [
+                    { x: 2900, y: 635 }
+                ]
+            },
+            {
+                tipo: "boss",
+                titulo: "EISEN",
+                triggerX: 3400,
+                blockX: 3800,
+                boss: { x: 3920, y: 625 }
+            }
+        ];
+
+        this.criarTexturasProcedurais();
         this.criarCenario();
         this.criarAnimacoes();
         this.criarPlayer();
         this.criarHUD();
         this.criarMensagens();
         this.criarAudio();
-        this.iniciarSpawnerInimigos();
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
@@ -120,6 +198,8 @@ export class Phase1 extends Phaser.Scene {
             K: Phaser.Input.Keyboard.KeyCodes.K
         });
 
+        this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+
         this.events.on("shutdown", this.finalizarCena, this);
         this.events.on("destroy", this.finalizarCena, this);
     }
@@ -130,41 +210,203 @@ export class Phase1 extends Phaser.Scene {
             return;
         }
 
+        if (this.bossIntroActive) {
+            this.atualizarParallax();
+
+            this.enemies.forEach((enemy) => {
+                if (enemy.sprite?.body) {
+                    enemy.sprite.body.setVelocity(0, 0);
+                }
+            });
+
+            if (this.boss?.sprite?.body) {
+                this.boss.sprite.body.setVelocity(0, 0);
+            }
+
+            if (this.bossApproachActive) {
+                this.atualizarAproximacaoDoBoss();
+            } else {
+                this.player.setVelocity(0, 0);
+
+                if (Phaser.Input.Keyboard.JustDown(this.enterKey) && this.bossDialogActive) {
+                    this.avancarDialogoBoss();
+                }
+            }
+
+            this.atualizarHUDInimigos();
+            this.atualizarBossHUD();
+            this.organizarProfundidade();
+            return;
+        }
+
+        this.atualizarParallax();
+        this.verificarGatilhosFase();
+
         this.atualizarPlayer();
         this.atualizarInimigos();
+        this.atualizarBoss();
+        this.atualizarItens();
+
         this.atualizarHUDInimigos();
+        this.atualizarBossHUD();
         this.organizarProfundidade();
         this.verificarFimDaFase();
     }
 
-    criarCenario() {
-        this.add.image(0, 0, "phase1Bg")
-            .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth, this.worldHeight);
+    criarTexturasProcedurais() {
+        const g = this.add.graphics();
+
+        if (!this.textures.exists("parallaxClouds")) {
+            g.clear();
+            g.fillStyle(0xffffff, 0.9);
+            g.fillEllipse(80, 50, 90, 36);
+            g.fillEllipse(120, 45, 80, 34);
+            g.fillEllipse(155, 52, 65, 28);
+
+            g.fillEllipse(310, 80, 100, 40);
+            g.fillEllipse(360, 75, 70, 32);
+            g.fillEllipse(400, 82, 80, 30);
+
+            g.generateTexture("parallaxClouds", 512, 128);
+        }
+
+        if (!this.textures.exists("parallaxSkyline")) {
+            g.clear();
+            g.fillStyle(0x4d6478, 1);
+            g.fillRect(0, 140, 60, 116);
+            g.fillRect(70, 110, 90, 146);
+            g.fillRect(175, 135, 75, 121);
+            g.fillRect(265, 85, 80, 171);
+            g.fillRect(360, 120, 55, 136);
+            g.fillRect(430, 95, 70, 161);
+            g.generateTexture("parallaxSkyline", 512, 256);
+        }
+
+        if (!this.textures.exists("crateBox")) {
+            g.clear();
+            g.fillStyle(0x7a5230, 1);
+            g.fillRoundedRect(0, 0, 64, 64, 6);
+            g.lineStyle(4, 0x4a2d17, 1);
+            g.strokeRoundedRect(0, 0, 64, 64, 6);
+            g.lineBetween(10, 10, 54, 54);
+            g.lineBetween(54, 10, 10, 54);
+            g.lineStyle(2, 0x3d2412, 1);
+            g.strokeRect(6, 6, 52, 52);
+            g.generateTexture("crateBox", 64, 64);
+        }
+
+        if (!this.textures.exists("snackItem")) {
+            g.clear();
+            g.fillStyle(0xf29e38, 1);
+            g.fillEllipse(28, 24, 28, 20);
+            g.fillStyle(0xffd8a6, 1);
+            g.fillCircle(14, 18, 7);
+            g.fillCircle(16, 30, 7);
+            g.fillStyle(0x6fbf4b, 1);
+            g.fillEllipse(34, 8, 10, 6);
+            g.generateTexture("snackItem", 48, 40);
+        }
+
+        if (!this.textures.exists("bossPlaceholder")) {
+            g.clear();
+            g.fillStyle(0x7a0c0c, 1);
+            g.fillRoundedRect(0, 0, 150, 160, 12);
+            g.lineStyle(6, 0x2a0000, 1);
+            g.strokeRoundedRect(0, 0, 150, 160, 12);
+
+            g.fillStyle(0xffffff, 1);
+            g.fillRect(28, 42, 28, 18);
+            g.fillRect(94, 42, 28, 18);
+
+            g.fillStyle(0x000000, 1);
+            g.fillRect(36, 46, 10, 10);
+            g.fillRect(102, 46, 10, 10);
+
+            g.lineStyle(6, 0x2a0000, 1);
+            g.lineBetween(28, 115, 122, 115);
+
+            g.generateTexture("bossPlaceholder", 150, 160);
+        }
+
+        g.destroy();
     }
 
-    criarAudio() {
-        this.phaseMusic = this.sound.add("phaseMusic", {
-            volume: 0.35,
-            loop: true
-        });
+  criarCenario() {
+    this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x9fd7f5)
+        .setOrigin(0, 0)
+        .setDepth(-50);
 
-        this.sfxPunch = this.sound.add("sfxPunch", { volume: 0.5 });
-        this.sfxKick = this.sound.add("sfxKick", { volume: 0.55 });
-        this.sfxHurt = this.sound.add("sfxHurt", { volume: 0.6 });
-        this.sfxDeath = this.sound.add("sfxDeath", { volume: 0.7 });
-        this.sfxVictory = this.sound.add("sfxVictory", { volume: 0.8 });
+    this.parallaxClouds = this.add.tileSprite(640, 120, 1280, 180, "parallaxClouds")
+        .setScrollFactor(0)
+        .setDepth(-45)
+        .setAlpha(0.55);
 
-        if (!this.sound.locked) {
-            this.phaseMusic.play();
-        } else {
-            this.sound.once("unlocked", () => {
-                if (this.phaseMusic && !this.phaseMusic.isPlaying) {
-                    this.phaseMusic.play();
-                }
-            });
+    this.parallaxSkyline = this.add.tileSprite(640, 220, 1280, 260, "parallaxSkyline")
+        .setScrollFactor(0)
+        .setDepth(-42)
+        .setAlpha(0.35);
+
+    const larguraSegmento = this.worldWidth / 3;
+
+    this.add.image(0, 0, "phase1Bg1")
+        .setOrigin(0, 0)
+        .setDisplaySize(larguraSegmento, this.worldHeight)
+        .setDepth(-30);
+
+    this.add.image(larguraSegmento, 0, "phase1Bg2")
+        .setOrigin(0, 0)
+        .setDisplaySize(larguraSegmento, this.worldHeight)
+        .setDepth(-30);
+
+    this.add.image(larguraSegmento * 2, 0, "phase1Bg3")
+        .setOrigin(0, 0)
+        .setDisplaySize(larguraSegmento, this.worldHeight)
+        .setDepth(-30);
+
+    this.add.rectangle(0, 645, this.worldWidth, 75, 0x2b2b2b, 0.15)
+        .setOrigin(0, 0)
+        .setDepth(-10);
+}
+
+    atualizarParallax() {
+        const scrollX = this.cameras.main.scrollX;
+
+        if (this.parallaxClouds) {
+            this.parallaxClouds.tilePositionX = scrollX * 0.15;
+        }
+
+        if (this.parallaxSkyline) {
+            this.parallaxSkyline.tilePositionX = scrollX * 0.35;
         }
     }
+
+  criarAudio() {
+    this.phaseMusic = this.sound.add("phaseMusic", {
+        volume: 0.35,
+        loop: true
+    });
+
+    this.sfxPunch = this.sound.add("sfxPunch", { volume: 0.5 });
+    this.sfxKick = this.sound.add("sfxKick", { volume: 0.55 });
+
+    this.sfxHurt = this.sound.add("sfxHurt", { volume: 0.6 }); // Leona levando dano
+    this.sfxDeath = this.sound.add("sfxDeath", { volume: 0.7 }); // Leona morrendo
+
+    this.sfxEnemyDamage = this.sound.add("sfxEnemyDamage", { volume: 0.6 }); // inimigos/boss levando dano
+    this.sfxBossDeath = this.sound.add("sfxBossDeath", { volume: 0.75 }); // boss morrendo
+
+    this.sfxVictory = this.sound.add("sfxVictory", { volume: 0.8 });
+
+    if (!this.sound.locked) {
+        this.phaseMusic.play();
+    } else {
+        this.sound.once("unlocked", () => {
+            if (this.phaseMusic && !this.phaseMusic.isPlaying) {
+                this.phaseMusic.play();
+            }
+        });
+    }
+}
 
     tocarSom(audio, restart = false) {
         if (!audio) return;
@@ -194,6 +436,80 @@ export class Phase1 extends Phaser.Scene {
             fontSize: "24px",
             color: "#ffd166"
         }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setAlpha(0).setDepth(10000);
+
+        this.waveText = this.add.text(640, 120, "", {
+            fontSize: "36px",
+            color: "#ffffff",
+            fontStyle: "bold",
+            stroke: "#000000",
+            strokeThickness: 6
+        }).setOrigin(0.5).setScrollFactor(0).setAlpha(0).setDepth(10000);
+
+        this.dialogBg = this.add.rectangle(640, 585, 1160, 190, 0x000000, 0.78)
+            .setStrokeStyle(3, 0xffffff)
+            .setScrollFactor(0)
+            .setDepth(10020)
+            .setVisible(false);
+
+        this.dialogPortraitFrameLeona = this.add.circle(120, 585, 52, 0x1d1d1d)
+            .setStrokeStyle(3, 0xffffff)
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
+
+        this.dialogPortraitLeona = this.add.image(120, 585, "heroPortrait")
+            .setScrollFactor(0)
+            .setDepth(10022)
+            .setVisible(false);
+        this.ajustarPortrait(this.dialogPortraitLeona, 86, 86);
+
+        this.dialogPortraitFrameBoss = this.add.circle(1160, 585, 52, 0x1d1d1d)
+            .setStrokeStyle(3, 0xffffff)
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
+
+        this.dialogPortraitBoss = this.add.image(1160, 585, "bossPortrait")
+            .setScrollFactor(0)
+            .setDepth(10022)
+            .setVisible(false);
+        this.ajustarPortrait(this.dialogPortraitBoss, 92, 92);
+
+        this.dialogNome = this.add.text(205, 520, "", {
+            fontSize: "28px",
+            color: "#ffd166",
+            fontStyle: "bold"
+        })
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
+
+        this.dialogTexto = this.add.text(205, 555, "", {
+            fontSize: "26px",
+            color: "#ffffff",
+            wordWrap: { width: 840 }
+        })
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
+
+        this.dialogHint = this.add.text(1095, 650, "ENTER", {
+            fontSize: "20px",
+            color: "#dddddd",
+            fontStyle: "bold"
+        })
+            .setOrigin(1, 0.5)
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
+
+        this.tweens.add({
+            targets: this.dialogHint,
+            alpha: 0.35,
+            duration: 700,
+            yoyo: true,
+            repeat: -1
+        });
     }
 
     mostrarMensagemFinal(titulo, subtitulo) {
@@ -208,6 +524,19 @@ export class Phase1 extends Phaser.Scene {
             targets: [this.endBox, this.endTitle, this.endSub],
             alpha: 1,
             duration: 250
+        });
+    }
+
+    mostrarAvisoFase(texto) {
+        this.waveText.setText(texto);
+        this.waveText.setAlpha(0);
+
+        this.tweens.add({
+            targets: this.waveText,
+            alpha: 1,
+            duration: 200,
+            yoyo: true,
+            hold: 800
         });
     }
 
@@ -233,68 +562,6 @@ export class Phase1 extends Phaser.Scene {
 
         this.maxHp = 100;
         this.currentHp = 100;
-    }
-
-    iniciarSpawnerInimigos() {
-        this.enemySpawnEvent = this.time.addEvent({
-            delay: 2400,
-            loop: true,
-            callback: () => {
-                if (this.levelComplete) return;
-                if (this.spawnedEnemies >= this.totalEnemiesToSpawn) return;
-                if (this.contarInimigosAtivos() >= this.maxEnemiesOnScreen) return;
-
-                this.spawnEnemy();
-            }
-        });
-
-        this.spawnEnemy();
-    }
-
-    spawnEnemy() {
-        if (this.spawnedEnemies >= this.totalEnemiesToSpawn) return;
-        if (this.contarInimigosAtivos() >= this.maxEnemiesOnScreen) return;
-
-        const x = Phaser.Math.Between(980, 1180);
-        const y = Phaser.Math.Between(this.enemySpawnMinY, this.enemySpawnMaxY);
-
-        const sprite = this.physics.add.sprite(x, y, "enemy_idle");
-        sprite.setOrigin(0.5, 1);
-        sprite.setCollideWorldBounds(true);
-
-        this.ajustarEscalaSprite(sprite, this.alturaEnemy);
-        sprite.play("enemy_idle");
-
-        sprite.on(Phaser.Animations.Events.ANIMATION_UPDATE, () => {
-            this.ajustarEscalaSprite(sprite, this.alturaEnemy);
-        });
-
-        const hpBg = this.add.graphics();
-        const hpFill = this.add.graphics();
-
-        const enemy = {
-            sprite,
-            hpBg,
-            hpFill,
-            data: {
-                maxHp: 45,
-                currentHp: 45,
-                speed: 80,
-                isDead: false,
-                isAttacking: false,
-                isHurt: false,
-                isRemoving: false,
-                attackCooldown: 950,
-                lastAttackTime: 0
-            }
-        };
-
-        this.enemies.push(enemy);
-        this.spawnedEnemies++;
-    }
-
-    contarInimigosAtivos() {
-        return this.enemies.filter((enemy) => !enemy.data.isDead && !enemy.data.isRemoving).length;
     }
 
     criarHUD() {
@@ -338,6 +605,25 @@ export class Phase1 extends Phaser.Scene {
             }
         ).setScrollFactor(0).setDepth(10000);
 
+        this.bossHudBg = this.add.rectangle(930, 55, 470, 95, 0x000000, 0.45)
+            .setStrokeStyle(2, 0xffffff)
+            .setScrollFactor(0)
+            .setDepth(9999)
+            .setVisible(false);
+
+        this.bossNameText = this.add.text(720, 25, "EISEN", {
+            fontSize: "24px",
+            color: "#ffffff",
+            fontStyle: "bold"
+        }).setScrollFactor(0).setDepth(10000).setVisible(false);
+
+        this.bossHpBarBg = this.add.graphics().setScrollFactor(0).setDepth(10000);
+        this.bossHpBarFill = this.add.graphics().setScrollFactor(0).setDepth(10000);
+        this.bossHpText = this.add.text(720, 80, "", {
+            fontSize: "20px",
+            color: "#ffffff"
+        }).setScrollFactor(0).setDepth(10000).setVisible(false);
+
         this.atualizarHUD();
     }
 
@@ -361,7 +647,7 @@ export class Phase1 extends Phaser.Scene {
                     { key: "leona_walk4" },
                     { key: "leona_walk5" }
                 ],
-                frameRate: 10,
+                frameRate: 8.4,
                 repeat: -1
             });
         }
@@ -398,7 +684,7 @@ export class Phase1 extends Phaser.Scene {
                     { key: "enemy_walk5" },
                     { key: "enemy_walk6" }
                 ],
-                frameRate: 10,
+                frameRate: 5,
                 repeat: -1
             });
         }
@@ -414,6 +700,444 @@ export class Phase1 extends Phaser.Scene {
                 repeat: 0
             });
         }
+
+        if (!this.anims.exists("boss_idle")) {
+            this.anims.create({
+                key: "boss_idle",
+                frames: [{ key: "boss_idle_base" }],
+                frameRate: 1,
+                repeat: -1
+            });
+        }
+
+        if (!this.anims.exists("boss_walk")) {
+            this.anims.create({
+                key: "boss_walk",
+                frames: [
+                    { key: "boss_walk1" },
+                    { key: "boss_walk2" },
+                    { key: "boss_walk3" },
+                    { key: "boss_walk4" },
+                    { key: "boss_walk5" },
+                    { key: "boss_walk6" }
+                ],
+                frameRate: 4,
+                repeat: -1
+            });
+        }
+
+        if (!this.anims.exists("boss_death")) {
+            this.anims.create({
+                key: "boss_death",
+                frames: [
+                    { key: "boss_death1" },
+                    { key: "boss_death2" }
+                ],
+                frameRate: 4,
+                repeat: 0
+            });
+        }
+    }
+
+    verificarGatilhosFase() {
+        if (this.waveActive || this.levelComplete) return;
+
+        const proximaWave = this.waveConfigs[this.currentWaveIndex + 1];
+        if (!proximaWave) return;
+
+        if (this.player.x >= proximaWave.triggerX) {
+            this.iniciarWave(proximaWave, this.currentWaveIndex + 1);
+        }
+    }
+
+    iniciarWave(config, index) {
+        this.currentWaveIndex = index;
+        this.waveActive = true;
+        this.currentLimitX = config.blockX;
+
+        if (config.tipo === "wave") {
+            this.mostrarAvisoFase(config.titulo);
+
+            config.enemies.forEach((enemyData) => {
+                this.spawnEnemy(enemyData.x, enemyData.y);
+            });
+
+            if (config.boxes) {
+                config.boxes.forEach((boxData) => {
+                    this.spawnBox(boxData.x, boxData.y);
+                });
+            }
+        }
+
+        if (config.tipo === "boss") {
+            this.pendingBossConfig = config;
+            this.iniciarDialogoBoss();
+        }
+    }
+
+    finalizarWave() {
+        this.waveActive = false;
+        this.currentLimitX = this.worldWidth - 40;
+        this.mostrarAvisoFase("ÁREA LIMPA!");
+    }
+
+    iniciarDialogoBoss() {
+        if (this.bossIntroStarted || !this.pendingBossConfig) return;
+
+        this.bossIntroStarted = true;
+        this.bossIntroActive = true;
+        this.bossDialogActive = false;
+        this.bossApproachActive = true;
+        this.bossIntroIndex = 0;
+
+        this.bossDialogos = [
+            {
+                nome: "Eisen",
+                texto: "Então foi você que abriu caminho até aqui."
+            },
+            {
+                nome: "Leona",
+                texto: "Se os seus capangas caíram, o problema agora é você."
+            },
+            {
+                nome: "Eisen",
+                texto: "Aurora inteira vai se curvar diante de mim... e você vai servir de exemplo."
+            },
+            {
+                nome: "Leona",
+                texto: "Eu já ouvi esse tipo de ameaça antes."
+            },
+            {
+                nome: "Eisen",
+                texto: "Ótimo. Então chega de conversa."
+            }
+        ];
+
+        if (!this.boss) {
+            this.spawnBoss(this.pendingBossConfig.boss.x, this.pendingBossConfig.boss.y, false);
+        }
+
+        if (this.boss?.sprite) {
+            this.boss.sprite.setFlipX(true);
+            this.boss.sprite.play("boss_idle", true);
+            this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
+        }
+    }
+
+    atualizarAproximacaoDoBoss() {
+        if (!this.boss || !this.boss.sprite?.active) {
+            this.bossApproachActive = false;
+            this.abrirDialogoBoss();
+            return;
+        }
+
+        const alvoX = this.boss.sprite.x - 185;
+        const alvoY = Phaser.Math.Clamp(this.boss.sprite.y, 590, 640);
+        const dx = alvoX - this.player.x;
+        const dy = alvoY - this.player.y;
+        const distanciaX = Math.abs(dx);
+        const distanciaY = Math.abs(dy);
+
+        if (distanciaX <= 12 && distanciaY <= 12) {
+            this.player.setVelocity(0, 0);
+            this.player.setFlipX(false);
+            this.player.play("leona_idle", true);
+            this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+
+            this.boss.sprite.setFlipX(true);
+            this.boss.sprite.play("boss_idle", true);
+            this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
+
+            this.bossApproachActive = false;
+            this.abrirDialogoBoss();
+            return;
+        }
+
+        const velocidadeX = 135;
+        const velocidadeY = 70;
+        let vx = 0;
+        let vy = 0;
+
+        if (dx < -12) vx = -velocidadeX;
+        if (dx > 12) vx = velocidadeX;
+        if (dy < -10) vy = -velocidadeY;
+        if (dy > 10) vy = velocidadeY;
+
+        if (vx !== 0 && vy !== 0) {
+            vx *= 0.7071;
+            vy *= 0.7071;
+        }
+
+        this.player.setVelocity(vx, vy);
+        this.player.setFlipX(false);
+
+        if (this.player.anims.currentAnim?.key !== "leona_walk") {
+            this.player.play("leona_walk", true);
+        }
+
+        this.boss.sprite.setFlipX(true);
+        if (this.boss.sprite.anims.currentAnim?.key !== "boss_idle") {
+            this.boss.sprite.play("boss_idle", true);
+        }
+    }
+
+    abrirDialogoBoss() {
+        this.bossDialogActive = true;
+
+        this.dialogBg.setVisible(true);
+        this.dialogPortraitFrameLeona.setVisible(true);
+        this.dialogPortraitLeona.setVisible(true);
+        this.dialogPortraitFrameBoss.setVisible(true);
+        this.dialogPortraitBoss.setVisible(true);
+        this.dialogNome.setVisible(true);
+        this.dialogTexto.setVisible(true);
+        this.dialogHint.setVisible(true);
+
+        this.mostrarDialogoBossAtual();
+    }
+
+    mostrarDialogoBossAtual() {
+        const fala = this.bossDialogos[this.bossIntroIndex];
+        this.dialogNome.setText(fala.nome);
+        this.dialogTexto.setText(fala.texto);
+        this.atualizarRetratosDialogo(fala.nome);
+    }
+
+    atualizarRetratosDialogo(nomeFalante) {
+        const leonaFalando = nomeFalante === "Leona";
+
+        this.dialogPortraitLeona.setAlpha(leonaFalando ? 1 : 0.45);
+        this.dialogPortraitBoss.setAlpha(leonaFalando ? 0.45 : 1);
+
+        this.dialogPortraitFrameLeona.setStrokeStyle(3, leonaFalando ? 0xffd166 : 0xffffff, 1);
+        this.dialogPortraitFrameBoss.setStrokeStyle(3, leonaFalando ? 0xffffff : 0xffd166, 1);
+    }
+
+    avancarDialogoBoss() {
+        this.bossIntroIndex++;
+
+        if (this.bossIntroIndex >= this.bossDialogos.length) {
+            this.encerrarDialogoBoss();
+            return;
+        }
+
+        this.mostrarDialogoBossAtual();
+    }
+
+    encerrarDialogoBoss() {
+        this.bossIntroActive = false;
+        this.bossDialogActive = false;
+        this.bossApproachActive = false;
+
+        this.dialogBg.setVisible(false);
+        this.dialogPortraitFrameLeona.setVisible(false);
+        this.dialogPortraitLeona.setVisible(false);
+        this.dialogPortraitFrameBoss.setVisible(false);
+        this.dialogPortraitBoss.setVisible(false);
+        this.dialogNome.setVisible(false);
+        this.dialogTexto.setVisible(false);
+        this.dialogHint.setVisible(false);
+
+        this.iniciarLutaBoss();
+    }
+
+    iniciarLutaBoss() {
+        if (this.bossFightStarted || !this.pendingBossConfig) return;
+
+        this.bossFightStarted = true;
+
+        if (!this.boss) {
+            this.spawnBoss(this.pendingBossConfig.boss.x, this.pendingBossConfig.boss.y, true);
+        }
+
+        if (this.boss?.sprite?.active) {
+            this.boss.sprite.play("boss_idle", true);
+            this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
+            this.boss.sprite.setFlipX(true);
+        }
+
+        this.atualizarBossHUD();
+        this.mostrarAvisoFase("BOSS FIGHT!");
+    }
+
+   spawnEnemy(x, y) {
+        const sprite = this.physics.add.sprite(x, y, "enemy_idle");
+        sprite.setOrigin(0.5, 1);
+        sprite.setCollideWorldBounds(true);
+
+        this.ajustarEscalaSprite(sprite, this.alturaEnemy);
+        sprite.play("enemy_idle");
+
+        sprite.on(Phaser.Animations.Events.ANIMATION_UPDATE, () => {
+            this.ajustarEscalaSprite(sprite, this.alturaEnemy);
+        });
+
+        const hpBg = this.add.graphics();
+        const hpFill = this.add.graphics();
+
+        const enemy = {
+            sprite,
+            hpBg,
+            hpFill,
+            data: {
+                maxHp: 52,
+                currentHp: 52,
+                speed: 94,
+                damage: 10,
+                isDead: false,
+                isAttacking: false,
+                isHurt: false,
+                isRemoving: false,
+                attackCooldown: 760,
+                lastAttackTime: 0,
+                attackRangeX: 86,
+                attackRangeY: 54,
+                laneOffsetY: Phaser.Math.Between(-42, 42),
+                attackOffsetX: Phaser.Math.Between(-34, 34),
+                personalSpace: Phaser.Math.Between(64, 82),
+                pressTimer: 0,
+                recuoTimer: 0
+            }
+        };
+
+        this.enemies.push(enemy);
+    }
+
+   spawnBoss(x, y, exibirHud = false) {
+    const sprite = this.physics.add.sprite(x, y, "boss_idle_base");
+    sprite.setOrigin(0.5, 1);
+    sprite.setCollideWorldBounds(true);
+
+    this.ajustarEscalaSprite(sprite, this.alturaBoss);
+    sprite.play("boss_idle", true);
+
+    sprite.on(Phaser.Animations.Events.ANIMATION_UPDATE, () => {
+        this.ajustarEscalaSprite(sprite, this.alturaBoss);
+    });
+
+    this.boss = {
+        sprite,
+        data: {
+            maxHp: 260,
+            currentHp: 260,
+            speed: 84,
+            damage: 18,
+            isDead: false,
+            isAttacking: false,
+            isHurt: false,
+            attackCooldown: 900,
+            lastAttackTime: 0,
+            attackRangeX: 105,
+            attackRangeY: 62
+        }
+    };
+
+    this.bossHudBg.setVisible(exibirHud);
+    this.bossNameText.setVisible(exibirHud);
+    this.bossHpText.setVisible(exibirHud);
+}
+
+    spawnBox(x, y) {
+        const sprite = this.add.image(x, y, "crateBox").setOrigin(0.5, 1);
+
+        const box = {
+            sprite,
+            hp: 20,
+            destroyed: false
+        };
+
+        this.boxes.push(box);
+    }
+
+    spawnHealthItem(x, groundY, mode = "rise") {
+        const sprite = this.add.image(x, mode === "fall" ? -30 : groundY + 10, "snackItem")
+            .setOrigin(0.5, 1);
+
+        const item = {
+            sprite,
+            heal: 25,
+            picked: false,
+            tween: null
+        };
+
+        this.items.push(item);
+
+        if (mode === "fall") {
+            this.tweens.add({
+                targets: sprite,
+                y: groundY,
+                duration: 500,
+                ease: "Bounce.Out",
+                onComplete: () => {
+                    this.iniciarBalancoDoItem(item);
+                }
+            });
+        } else {
+            this.tweens.add({
+                targets: sprite,
+                y: groundY - 25,
+                duration: 260,
+                ease: "Back.Out",
+                onComplete: () => {
+                    this.iniciarBalancoDoItem(item);
+                }
+            });
+        }
+    }
+
+    iniciarBalancoDoItem(item) {
+        if (!item || item.picked || !item.sprite.active) return;
+
+        item.tween = this.tweens.add({
+            targets: item.sprite,
+            y: item.sprite.y - 8,
+            duration: 650,
+            yoyo: true,
+            repeat: -1
+        });
+    }
+
+    atualizarItens() {
+        this.items.forEach((item) => {
+            if (item.picked || !item.sprite.active) return;
+
+            const dx = Math.abs(this.player.x - item.sprite.x);
+            const dy = Math.abs(this.player.y - item.sprite.y);
+
+            if (dx <= 45 && dy <= 50) {
+                this.coletarItem(item);
+            }
+        });
+
+        this.items = this.items.filter((item) => item.sprite && item.sprite.active);
+    }
+
+    coletarItem(item) {
+        if (!item || item.picked) return;
+
+        item.picked = true;
+
+        if (item.tween) {
+            item.tween.stop();
+        }
+
+        this.currentHp += item.heal;
+        if (this.currentHp > this.maxHp) {
+            this.currentHp = this.maxHp;
+        }
+
+        this.atualizarHUD();
+
+        this.tweens.add({
+            targets: item.sprite,
+            alpha: 0,
+            scaleX: 1.35,
+            scaleY: 1.35,
+            duration: 150,
+            onComplete: () => {
+                item.sprite.destroy();
+            }
+        });
     }
 
     atualizarPlayer() {
@@ -488,6 +1212,10 @@ export class Phase1 extends Phaser.Scene {
 
         if (this.player.y < 560) this.player.y = 560;
         if (this.player.y > 650) this.player.y = 650;
+
+        if (this.player.x > this.currentLimitX) {
+            this.player.x = this.currentLimitX;
+        }
     }
 
     iniciarCombo() {
@@ -515,7 +1243,7 @@ export class Phase1 extends Phaser.Scene {
         if (step === 3) duracao = 210;
 
         this.time.delayedCall(55, () => {
-            this.tentarAcertarInimigos(dano, alcanceX, alcanceY);
+            this.tentarAcertarAlvos(dano, alcanceX, alcanceY);
         });
 
         this.time.delayedCall(duracao, () => {
@@ -555,7 +1283,7 @@ export class Phase1 extends Phaser.Scene {
         this.tocarSom(this.sfxKick, true);
 
         this.time.delayedCall(50, () => {
-            this.tentarAcertarInimigos(20, 120, 60);
+            this.tentarAcertarAlvos(20, 120, 60);
         });
 
         this.time.delayedCall(240, () => {
@@ -565,6 +1293,12 @@ export class Phase1 extends Phaser.Scene {
                 this.ajustarEscalaSprite(this.player, this.alturaPlayer);
             }
         });
+    }
+
+    tentarAcertarAlvos(dano, alcanceX, alcanceY) {
+        this.tentarAcertarInimigos(dano, alcanceX, alcanceY);
+        this.tentarAcertarBoss(dano, alcanceX, alcanceY);
+        this.tentarAcertarCaixas(dano, alcanceX, alcanceY);
     }
 
     tentarAcertarInimigos(dano, alcanceX, alcanceY) {
@@ -590,82 +1324,238 @@ export class Phase1 extends Phaser.Scene {
         });
     }
 
+    tentarAcertarBoss(dano, alcanceX, alcanceY) {
+        if (!this.boss || this.boss.data.isDead) return;
+
+        const dx = this.boss.sprite.x - this.player.x;
+        const dy = Math.abs(this.boss.sprite.y - this.player.y);
+
+        let acertouNaFrente = false;
+
+        if (this.player.flipX) {
+            acertouNaFrente = dx < 0 && Math.abs(dx) <= alcanceX + 10;
+        } else {
+            acertouNaFrente = dx > 0 && dx <= alcanceX + 10;
+        }
+
+        if (acertouNaFrente && dy <= alcanceY + 10) {
+            this.danoNoBoss(dano);
+        }
+    }
+
+    tentarAcertarCaixas(dano, alcanceX, alcanceY) {
+        const caixasVivas = this.boxes.filter((box) => !box.destroyed);
+
+        caixasVivas.forEach((box) => {
+            const dx = box.sprite.x - this.player.x;
+            const dy = Math.abs(box.sprite.y - this.player.y);
+
+            let acertouNaFrente = false;
+
+            if (this.player.flipX) {
+                acertouNaFrente = dx < 0 && Math.abs(dx) <= alcanceX;
+            } else {
+                acertouNaFrente = dx > 0 && dx <= alcanceX;
+            }
+
+            if (acertouNaFrente && dy <= alcanceY + 25) {
+                this.danoNaCaixa(box, dano);
+            }
+        });
+    }
+
+    danoNaCaixa(box, valor) {
+        if (box.destroyed) return;
+
+        box.hp -= valor;
+
+        this.tweens.add({
+            targets: box.sprite,
+            x: box.sprite.x + (Phaser.Math.Between(0, 1) ? 4 : -4),
+            duration: 40,
+            yoyo: true
+        });
+
+        if (box.hp <= 0) {
+            this.destruirCaixa(box);
+        }
+    }
+
+    destruirCaixa(box) {
+        if (box.destroyed) return;
+
+        box.destroyed = true;
+
+        this.tweens.add({
+            targets: box.sprite,
+            alpha: 0,
+            angle: Phaser.Math.Between(-15, 15),
+            scaleX: 1.15,
+            scaleY: 1.15,
+            duration: 180,
+            onComplete: () => {
+                const itemY = Phaser.Math.Clamp(box.sprite.y - 4, 580, 645);
+                this.spawnHealthItem(box.sprite.x, itemY, "rise");
+                box.sprite.destroy();
+            }
+        });
+
+        this.boxes = this.boxes.filter((b) => b !== box);
+    }
+
     atualizarInimigos() {
         this.enemies.forEach((enemy) => {
             this.atualizarInimigo(enemy);
         });
     }
 
-    atualizarInimigo(enemy) {
-        const sprite = enemy.sprite;
-        const data = enemy.data;
+    calcularSeparacaoInimigos(enemy) {
+        let repulsaoX = 0;
+        let repulsaoY = 0;
 
-        if (!sprite || data.isDead || data.isRemoving) {
-            if (sprite?.body) sprite.body.setVelocity(0, 0);
-            return;
-        }
+        this.enemies.forEach((other) => {
+            if (!other || other === enemy) return;
+            if (!other.sprite?.active) return;
+            if (other.data.isDead || other.data.isRemoving) return;
 
-        if (this.isDead) {
-            sprite.body.setVelocity(0, 0);
-            return;
-        }
+            const dx = enemy.sprite.x - other.sprite.x;
+            const dy = enemy.sprite.y - other.sprite.y;
+            const dist = Math.sqrt((dx * dx) + (dy * dy)) || 0.0001;
+            const distanciaMinima = Math.max(
+                enemy.data.personalSpace || 64,
+                other.data.personalSpace || 64
+            );
 
-        if (data.isAttacking || data.isHurt) {
-            sprite.body.setVelocity(0, 0);
-            return;
-        }
-
-        const dx = this.player.x - sprite.x;
-        const dy = this.player.y - sprite.y;
-
-        const distanciaX = Math.abs(dx);
-        const distanciaY = Math.abs(dy);
-
-        const alcanceAtaqueX = 70;
-        const alcanceAtaqueY = 45;
-
-        if (distanciaX <= alcanceAtaqueX && distanciaY <= alcanceAtaqueY) {
-            sprite.body.setVelocity(0, 0);
-
-            if (this.time.now > data.lastAttackTime + data.attackCooldown) {
-                this.atacarComInimigo(enemy);
+            if (dist < distanciaMinima) {
+                const forca = (distanciaMinima - dist) / distanciaMinima;
+                repulsaoX += (dx / dist) * forca * 90;
+                repulsaoY += (dy / dist) * forca * 120;
             }
+        });
+
+        return { x: repulsaoX, y: repulsaoY };
+    }
+
+    atualizarInimigo(enemy) {
+    const sprite = enemy.sprite;
+    const data = enemy.data;
+
+    if (!sprite || data.isDead || data.isRemoving) {
+        if (sprite?.body) sprite.body.setVelocity(0, 0);
+        return;
+    }
+
+    if (this.isDead) {
+        sprite.body.setVelocity(0, 0);
+        return;
+    }
+
+    if (data.isAttacking || data.isHurt) {
+        sprite.body.setVelocity(0, 0);
+        return;
+    }
+
+    const alvoX = this.player.x + data.attackOffsetX;
+    const alvoY = Phaser.Math.Clamp(this.player.y + data.laneOffsetY, 565, 645);
+
+    const dxPlayer = this.player.x - sprite.x;
+    const dyPlayer = this.player.y - sprite.y;
+
+    const dx = alvoX - sprite.x;
+    const dy = alvoY - sprite.y;
+
+    const distanciaPlayerX = Math.abs(dxPlayer);
+    const distanciaPlayerY = Math.abs(dyPlayer);
+
+    const separacao = this.calcularSeparacaoInimigos(enemy);
+
+    const dentroDoAtaque =
+        distanciaPlayerX <= data.attackRangeX &&
+        distanciaPlayerY <= data.attackRangeY;
+
+    const pertoDoPlayer =
+        distanciaPlayerX <= data.attackRangeX + 42 &&
+        distanciaPlayerY <= data.attackRangeY + 30;
+
+    if (dentroDoAtaque) {
+        if (this.time.now > data.lastAttackTime + data.attackCooldown && Math.abs(dy) <= 20) {
+            sprite.body.setVelocity(0, 0);
+            this.atacarComInimigo(enemy);
             return;
         }
 
-        let vx = 0;
-        let vy = 0;
+        let vx = separacao.x * 1.15;
+        let vy = dy * 1.5 + separacao.y;
 
-        if (dx < -6) vx = -data.speed;
-        if (dx > 6) vx = data.speed;
-        if (dy < -6) vy = -data.speed * 0.55;
-        if (dy > 6) vy = data.speed * 0.55;
-
-        if (vx !== 0 && vy !== 0) {
-            vx *= 0.7071;
-            vy *= 0.7071;
+        if (Math.abs(dxPlayer) > 28) {
+            vx += dxPlayer > 0 ? 18 : -18;
         }
+
+        vx = Phaser.Math.Clamp(vx, -58, 58);
+        vy = Phaser.Math.Clamp(vy, -68, 68);
 
         sprite.body.setVelocity(vx, vy);
 
         if (vx < 0) sprite.setFlipX(true);
         if (vx > 0) sprite.setFlipX(false);
 
-        const moving = vx !== 0 || vy !== 0;
-
-        if (moving) {
+        if (Math.abs(vx) > 4 || Math.abs(vy) > 4) {
             if (sprite.anims.currentAnim?.key !== "enemy_walk") {
                 sprite.play("enemy_walk", true);
             }
-        } else {
-            if (sprite.anims.currentAnim?.key !== "enemy_idle") {
-                sprite.play("enemy_idle", true);
-            }
+        } else if (sprite.anims.currentAnim?.key !== "enemy_idle") {
+            sprite.play("enemy_idle", true);
         }
 
         if (sprite.y < 560) sprite.y = 560;
         if (sprite.y > 650) sprite.y = 650;
+        return;
     }
+
+    let vx = 0;
+    let vy = 0;
+
+    if (pertoDoPlayer) {
+        if (dx < -6) vx = -data.speed * 1.03;
+        if (dx > 6) vx = data.speed * 1.03;
+        if (dy < -8) vy = -data.speed * 0.78;
+        if (dy > 8) vy = data.speed * 0.78;
+    } else {
+        if (dx < -8) vx = -data.speed;
+        if (dx > 8) vx = data.speed;
+        if (dy < -8) vy = -data.speed * 0.68;
+        if (dy > 8) vy = data.speed * 0.68;
+    }
+
+    vx += separacao.x;
+    vy += separacao.y;
+
+    vx = Phaser.Math.Clamp(vx, -data.speed * 1.05, data.speed * 1.05);
+    vy = Phaser.Math.Clamp(vy, -data.speed * 0.95, data.speed * 0.95);
+
+    if (vx !== 0 && vy !== 0) {
+        vx *= 0.7071;
+        vy *= 0.7071;
+    }
+
+    sprite.body.setVelocity(vx, vy);
+
+    if (vx < 0) sprite.setFlipX(true);
+    if (vx > 0) sprite.setFlipX(false);
+
+    const moving = Math.abs(vx) > 3 || Math.abs(vy) > 3;
+
+    if (moving) {
+        if (sprite.anims.currentAnim?.key !== "enemy_walk") {
+            sprite.play("enemy_walk", true);
+        }
+    } else if (sprite.anims.currentAnim?.key !== "enemy_idle") {
+        sprite.play("enemy_idle", true);
+    }
+
+    if (sprite.y < 560) sprite.y = 560;
+    if (sprite.y > 650) sprite.y = 650;
+}
 
     atacarComInimigo(enemy) {
         const sprite = enemy.sprite;
@@ -681,32 +1571,32 @@ export class Phase1 extends Phaser.Scene {
         sprite.setTexture("enemy_punch1");
         this.ajustarEscalaSprite(sprite, this.alturaEnemy);
 
-        this.time.delayedCall(90, () => {
+        this.time.delayedCall(70, () => {
             if (!data.isDead && !data.isRemoving && data.isAttacking) {
                 sprite.setTexture("enemy_punch2");
                 this.ajustarEscalaSprite(sprite, this.alturaEnemy);
             }
         });
 
-        this.time.delayedCall(170, () => {
+        this.time.delayedCall(125, () => {
             if (!data.isDead && !data.isRemoving && data.isAttacking) {
                 sprite.setTexture("enemy_punch3");
                 this.ajustarEscalaSprite(sprite, this.alturaEnemy);
             }
         });
 
-        this.time.delayedCall(175, () => {
+        this.time.delayedCall(135, () => {
             if (data.isDead || data.isRemoving || this.isDead || this.levelComplete) return;
 
             const dx = Math.abs(this.player.x - sprite.x);
             const dy = Math.abs(this.player.y - sprite.y);
 
-            if (dx <= 80 && dy <= 50) {
-                this.tomarDano(8);
+            if (dx <= (data.attackRangeX || 86) && dy <= (data.attackRangeY || 54)) {
+                this.tomarDano(data.damage || 10, sprite.x);
             }
         });
 
-        this.time.delayedCall(320, () => {
+        this.time.delayedCall(250, () => {
             if (!data.isDead && !data.isRemoving) {
                 data.isAttacking = false;
                 sprite.play("enemy_idle", true);
@@ -715,72 +1605,51 @@ export class Phase1 extends Phaser.Scene {
         });
     }
 
-    danoNoInimigo(enemy, valor) {
-        const sprite = enemy.sprite;
-        const data = enemy.data;
+    morrer(origemX = null) {
+        if (this.isDead || this.isGameEnding) return;
 
-        if (data.isDead || data.isRemoving) return;
+        this.isDead = true;
+        this.inAction = true;
+        this.isPunching = false;
+        this.comboStep = 0;
+        this.punchBuffer = 0;
 
-        data.currentHp -= valor;
-        if (data.currentHp < 0) {
-            data.currentHp = 0;
+        this.player.setVelocity(0, 0);
+        this.player.anims.stop();
+        this.player.setTexture("leona_damage");
+        this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+
+        if (!this.playerDeathPlayed) {
+            this.playerDeathPlayed = true;
+            this.tocarSom(this.sfxDeath, true);
         }
 
-        data.isHurt = true;
-        data.isAttacking = false;
-        sprite.body.setVelocity(0, 0);
-        sprite.anims.stop();
-        sprite.setTexture("enemy_damage");
-        this.ajustarEscalaSprite(sprite, this.alturaEnemy);
-
-        const empurrao = this.player.flipX ? -25 : 25;
-        sprite.x += empurrao;
-
-        if (data.currentHp <= 0) {
-            this.morrerInimigo(enemy);
-            return;
-        }
-
-        this.time.delayedCall(140, () => {
-            if (!data.isDead && !data.isRemoving) {
-                data.isHurt = false;
-                sprite.play("enemy_idle", true);
-                this.ajustarEscalaSprite(sprite, this.alturaEnemy);
+        this.aplicarArremessoNaMorte(
+            this.player,
+            origemX !== null ? origemX : this.lastDamageSourceX,
+            58,
+            34,
+            18,
+            150,
+            280,
+            () => {
+                if (!this.player || !this.player.active) return;
+                this.player.play("leona_death", true);
+                this.ajustarEscalaSprite(this.player, this.alturaPlayer);
             }
+        );
+
+        this.time.delayedCall(1800, () => {
+            this.concluirDerrota();
         });
     }
 
-    morrerInimigo(enemy) {
-        const sprite = enemy.sprite;
-        const data = enemy.data;
-
-        if (data.isDead || data.isRemoving) return;
-
-        data.isDead = true;
-        data.isAttacking = false;
-        data.isHurt = false;
-        data.isRemoving = true;
-
-        sprite.body.setVelocity(0, 0);
-        sprite.play("enemy_death", true);
-        this.ajustarEscalaSprite(sprite, this.alturaEnemy);
-
-        this.enemiesDefeated++;
-
-        this.time.delayedCall(500, () => {
-            if (enemy.hpBg) enemy.hpBg.clear();
-            if (enemy.hpFill) enemy.hpFill.clear();
-
-            enemy.hpBg?.destroy();
-            enemy.hpFill?.destroy();
-            sprite.destroy();
-
-            this.enemies = this.enemies.filter((e) => e !== enemy);
-        });
-    }
-
-    tomarDano(valor) {
+    tomarDano(valor, origemX = null) {
         if (this.isDead || this.levelComplete) return;
+
+        if (origemX !== null) {
+            this.lastDamageSourceX = origemX;
+        }
 
         this.currentHp -= valor;
         if (this.currentHp < 0) this.currentHp = 0;
@@ -789,7 +1658,7 @@ export class Phase1 extends Phaser.Scene {
         this.tocarSom(this.sfxHurt, true);
 
         if (this.currentHp <= 0) {
-            this.morrer();
+            this.morrer(origemX);
             return;
         }
 
@@ -812,37 +1681,330 @@ export class Phase1 extends Phaser.Scene {
         });
     }
 
-    morrer() {
-        if (this.isDead || this.isGameEnding) return;
+   danoNoInimigo(enemy, valor) {
+        const sprite = enemy.sprite;
+        const data = enemy.data;
 
-        this.isDead = true;
-        this.inAction = true;
-        this.isPunching = false;
-        this.comboStep = 0;
-        this.punchBuffer = 0;
+        if (data.isDead || data.isRemoving) return;
 
-        this.player.setVelocity(0, 0);
-        this.player.play("leona_death", true);
-        this.ajustarEscalaSprite(this.player, this.alturaPlayer);
-
-        if (!this.playerDeathPlayed) {
-            this.playerDeathPlayed = true;
-            this.tocarSom(this.sfxDeath, true);
+        data.currentHp -= valor;
+        if (data.currentHp < 0) {
+            data.currentHp = 0;
         }
 
-        this.time.delayedCall(1800, () => {
-            this.concluirDerrota();
+        data.isHurt = true;
+        data.isAttacking = false;
+        sprite.body.setVelocity(0, 0);
+        sprite.anims.stop();
+        sprite.setTexture("enemy_damage");
+        this.ajustarEscalaSprite(sprite, this.alturaEnemy);
+        this.tocarSom(this.sfxEnemyDamage, true);
+
+        const empurrao = this.player.flipX ? -25 : 25;
+        sprite.x += empurrao;
+
+        if (data.currentHp <= 0) {
+            this.morrerInimigo(enemy, this.player.x);
+            return;
+        }
+
+        this.time.delayedCall(140, () => {
+            if (!data.isDead && !data.isRemoving) {
+                data.isHurt = false;
+                sprite.play("enemy_idle", true);
+                this.ajustarEscalaSprite(sprite, this.alturaEnemy);
+            }
         });
     }
 
+    morrerInimigo(enemy, origemX = null) {
+        const sprite = enemy.sprite;
+        const data = enemy.data;
+
+        if (data.isDead || data.isRemoving) return;
+
+        data.isDead = true;
+        data.isAttacking = false;
+        data.isHurt = false;
+        data.isRemoving = true;
+
+        sprite.body.setVelocity(0, 0);
+        sprite.anims.stop();
+        sprite.setTexture("enemy_damage");
+        this.ajustarEscalaSprite(sprite, this.alturaEnemy);
+
+       
+
+        this.aplicarArremessoNaMorte(
+            sprite,
+            origemX,
+            42,
+            22,
+            14,
+            120,
+            220,
+            () => {
+                if (!sprite.active) return;
+                sprite.play("enemy_death", true);
+                this.ajustarEscalaSprite(sprite, this.alturaEnemy);
+            }
+        );
+
+        if (Phaser.Math.Between(0, 100) < 28) {
+            const dropY = Phaser.Math.Clamp(sprite.y - 8, 580, 640);
+            this.spawnHealthItem(sprite.x, dropY, "fall");
+        }
+
+        this.time.delayedCall(520, () => {
+            enemy.hpBg?.clear();
+            enemy.hpFill?.clear();
+            enemy.hpBg?.destroy();
+            enemy.hpFill?.destroy();
+            sprite.destroy();
+
+            this.enemies = this.enemies.filter((e) => e !== enemy);
+        });
+    }
+
+    atualizarBoss() {
+    if (!this.boss || this.boss.data.isDead || !this.bossFightStarted) return;
+
+    const sprite = this.boss.sprite;
+    const data = this.boss.data;
+
+    if (this.isDead) {
+        sprite.body.setVelocity(0, 0);
+
+        if (sprite.anims.currentAnim?.key !== "boss_idle") {
+            sprite.play("boss_idle", true);
+            this.ajustarEscalaSprite(sprite, this.alturaBoss);
+        }
+        return;
+    }
+
+    if (data.isAttacking || data.isHurt) {
+        sprite.body.setVelocity(0, 0);
+        return;
+    }
+
+    const dx = this.player.x - sprite.x;
+    const dy = this.player.y - sprite.y;
+
+    const distanciaX = Math.abs(dx);
+    const distanciaY = Math.abs(dy);
+
+    const alcanceAtaqueX = data.attackRangeX;
+    const alcanceAtaqueY = data.attackRangeY;
+
+    if (distanciaX <= alcanceAtaqueX && distanciaY <= alcanceAtaqueY) {
+        if (this.time.now > data.lastAttackTime + data.attackCooldown) {
+            sprite.body.setVelocity(0, 0);
+
+            if (sprite.anims.currentAnim?.key !== "boss_idle") {
+                sprite.play("boss_idle", true);
+                this.ajustarEscalaSprite(sprite, this.alturaBoss);
+            }
+
+            this.atacarComBoss();
+            return;
+        }
+
+        const vx = dx < 0 ? -34 : 34;
+        const vy = dy < 0 ? -22 : 22;
+        sprite.body.setVelocity(vx, vy);
+
+        if (vx < 0) sprite.setFlipX(true);
+        if (vx > 0) sprite.setFlipX(false);
+
+        if (sprite.anims.currentAnim?.key !== "boss_walk") {
+            sprite.play("boss_walk", true);
+            this.ajustarEscalaSprite(sprite, this.alturaBoss);
+        }
+
+        if (sprite.y < 560) sprite.y = 560;
+        if (sprite.y > 650) sprite.y = 650;
+        return;
+    }
+
+    let vx = 0;
+    let vy = 0;
+
+    if (dx < -5) vx = -data.speed;
+    if (dx > 5) vx = data.speed;
+
+    if (Math.abs(dy) > 8) {
+        vy = dy < 0 ? -data.speed * 0.6 : data.speed * 0.6;
+    }
+
+    if (vx !== 0 && vy !== 0) {
+        vx *= 0.7071;
+        vy *= 0.7071;
+    }
+
+    sprite.body.setVelocity(vx, vy);
+
+    if (vx < 0) sprite.setFlipX(true);
+    if (vx > 0) sprite.setFlipX(false);
+
+    const moving = vx !== 0 || vy !== 0;
+
+    if (moving) {
+        if (sprite.anims.currentAnim?.key !== "boss_walk") {
+            sprite.play("boss_walk", true);
+            this.ajustarEscalaSprite(sprite, this.alturaBoss);
+        }
+    } else {
+        if (sprite.anims.currentAnim?.key !== "boss_idle") {
+            sprite.play("boss_idle", true);
+            this.ajustarEscalaSprite(sprite, this.alturaBoss);
+        }
+    }
+
+    if (sprite.y < 560) sprite.y = 560;
+    if (sprite.y > 650) sprite.y = 650;
+}
+
+
+    atacarComBoss() {
+    if (!this.boss || this.boss.data.isDead || this.boss.data.isAttacking || this.boss.data.isHurt) return;
+
+    const sprite = this.boss.sprite;
+    const data = this.boss.data;
+
+    data.isAttacking = true;
+    data.lastAttackTime = this.time.now;
+
+    sprite.body.setVelocity(0, 0);
+    sprite.anims.stop();
+    sprite.setTexture("boss_punch1");
+    this.ajustarEscalaSprite(sprite, this.alturaBoss);
+
+    this.tocarSom(this.sfxPunch, true);
+
+    this.time.delayedCall(120, () => {
+        if (!this.boss || this.boss.data.isDead || !data.isAttacking) return;
+
+        sprite.setTexture("boss_punch2");
+        this.ajustarEscalaSprite(sprite, this.alturaBoss);
+    });
+
+    this.time.delayedCall(160, () => {
+        if (!this.boss || this.boss.data.isDead || this.isDead) return;
+
+        const dx = Math.abs(this.player.x - sprite.x);
+        const dy = Math.abs(this.player.y - sprite.y);
+
+        if (dx <= data.attackRangeX + 12 && dy <= data.attackRangeY + 8) {
+
+            this.tomarDano(data.damage, sprite.x);
+        }
+    });
+
+    this.time.delayedCall(300, () => {
+        if (this.boss && !this.boss.data.isDead) {
+            data.isAttacking = false;
+            sprite.play("boss_idle", true);
+            this.ajustarEscalaSprite(sprite, this.alturaBoss);
+        }
+    });
+}
+
+    danoNoBoss(valor) {
+        if (!this.boss || this.boss.data.isDead) return;
+
+        const sprite = this.boss.sprite;
+        const data = this.boss.data;
+
+        data.currentHp -= valor;
+        if (data.currentHp < 0) data.currentHp = 0;
+
+        data.isHurt = true;
+        data.isAttacking = false;
+        sprite.body.setVelocity(0, 0);
+        sprite.anims.stop();
+        sprite.setTexture("boss_damage");
+        this.ajustarEscalaSprite(sprite, this.alturaBoss);
+        this.tocarSom(this.sfxEnemyDamage, true);
+
+        const empurrao = this.player.flipX ? -28 : 28;
+        sprite.x += empurrao;
+
+        if (data.currentHp <= 0) {
+            this.morrerBoss(this.player.x);
+            return;
+        }
+
+        this.time.delayedCall(180, () => {
+            if (this.boss && !this.boss.data.isDead) {
+                data.isHurt = false;
+                sprite.play("boss_idle", true);
+                this.ajustarEscalaSprite(sprite, this.alturaBoss);
+            }
+        });
+    }
+
+    morrerBoss(origemX = null) {
+        if (!this.boss || this.boss.data.isDead) return;
+
+        const sprite = this.boss.sprite;
+        const data = this.boss.data;
+
+        data.isDead = true;
+        data.isAttacking = false;
+        data.isHurt = false;
+
+        sprite.body.setVelocity(0, 0);
+        sprite.anims.stop();
+        sprite.setTexture("boss_damage");
+        this.ajustarEscalaSprite(sprite, this.alturaBoss);
+        
+
+        this.aplicarArremessoNaMorte(
+            sprite,
+            origemX,
+            54,
+            26,
+            16,
+            140,
+            260,
+            () => {
+                if (!sprite.active) return;
+                sprite.play("boss_death", true);
+                this.ajustarEscalaSprite(sprite, this.alturaBoss);
+                this.tocarSom(this.sfxBossDeath, true);
+            }
+        );
+
+        this.tweens.add({
+            targets: sprite,
+            alpha: 0.8,
+            duration: 450
+        });
+    }
+
+   
+
+
     verificarFimDaFase() {
-        if (this.isGameEnding) return;
+        if (this.isGameEnding || !this.waveActive) return;
 
-        const todosSpawnados = this.spawnedEnemies >= this.totalEnemiesToSpawn;
-        const vivos = this.contarInimigosAtivos();
+        const configAtual = this.waveConfigs[this.currentWaveIndex];
+        if (!configAtual) return;
 
-        if (todosSpawnados && vivos === 0) {
-            this.concluirVitoria();
+        if (configAtual.tipo === "wave") {
+            const vivos = this.enemies.filter(
+                (enemy) => !enemy.data.isDead && !enemy.data.isRemoving
+            ).length;
+
+            if (vivos === 0) {
+                this.finalizarWave();
+            }
+        }
+
+        if (configAtual.tipo === "boss") {
+            if (this.bossFightStarted && this.boss && this.boss.data.isDead) {
+                this.concluirVitoria();
+            }
         }
     }
 
@@ -851,11 +2013,6 @@ export class Phase1 extends Phaser.Scene {
 
         this.isGameEnding = true;
         this.levelComplete = true;
-
-        if (this.enemySpawnEvent) {
-            this.enemySpawnEvent.remove(false);
-            this.enemySpawnEvent = null;
-        }
 
         if (this.phaseMusic?.isPlaying) {
             this.phaseMusic.stop();
@@ -875,11 +2032,6 @@ export class Phase1 extends Phaser.Scene {
         this.isGameEnding = true;
         this.levelComplete = true;
 
-        if (this.enemySpawnEvent) {
-            this.enemySpawnEvent.remove(false);
-            this.enemySpawnEvent = null;
-        }
-
         if (this.phaseMusic?.isPlaying) {
             this.phaseMusic.stop();
         }
@@ -888,18 +2040,6 @@ export class Phase1 extends Phaser.Scene {
 
         this.time.delayedCall(2600, () => {
             this.scene.start("Start");
-        });
-    }
-
-    organizarProfundidade() {
-        if (this.player) {
-            this.player.setDepth(this.player.y);
-        }
-
-        this.enemies.forEach((enemy) => {
-            if (enemy.sprite && enemy.sprite.active) {
-                enemy.sprite.setDepth(enemy.sprite.y);
-            }
         });
     }
 
@@ -929,29 +2069,102 @@ export class Phase1 extends Phaser.Scene {
     }
 
     atualizarHUDInimigos() {
+    this.enemies.forEach((enemy) => {
+        if (!enemy.hpBg || !enemy.hpFill) return;
+
+        enemy.hpBg.clear();
+        enemy.hpFill.clear();
+
+        if (enemy.data.isDead || enemy.data.isRemoving || !enemy.sprite.active) {
+            return;
+        }
+
+        const largura = 60;
+        const altura = 8;
+
+        const bounds = enemy.sprite.getBounds();
+        const x = enemy.sprite.x - largura / 2;
+        const y = bounds.top - 14;
+
+        enemy.hpBg.setDepth(enemy.sprite.y + 20);
+        enemy.hpFill.setDepth(enemy.sprite.y + 21);
+
+        enemy.hpBg.fillStyle(0x000000, 0.85);
+        enemy.hpBg.fillRoundedRect(x, y, largura, altura, 3);
+
+        enemy.hpFill.fillStyle(0xff3b30, 1);
+        enemy.hpFill.fillRoundedRect(
+            x + 1,
+            y + 1,
+            (largura - 2) * (enemy.data.currentHp / enemy.data.maxHp),
+            altura - 2,
+            2
+        );
+    });
+}
+
+    atualizarBossHUD() {
+        this.bossHpBarBg.clear();
+        this.bossHpBarFill.clear();
+
+        if (!this.boss || this.boss.data.isDead || !this.bossFightStarted) {
+            this.bossHudBg.setVisible(false);
+            this.bossNameText.setVisible(false);
+            this.bossHpText.setVisible(false);
+            return;
+        }
+
+        this.bossHudBg.setVisible(true);
+        this.bossNameText.setVisible(true);
+        this.bossHpText.setVisible(true);
+
+        const x = 720;
+        const y = 50;
+        const largura = 260;
+        const altura = 22;
+
+        this.bossHpBarBg.fillStyle(0x222222, 1);
+        this.bossHpBarBg.fillRoundedRect(x, y, largura, altura, 8);
+        this.bossHpBarBg.lineStyle(2, 0xffffff, 1);
+        this.bossHpBarBg.strokeRoundedRect(x, y, largura, altura, 8);
+
+        this.bossHpBarFill.fillStyle(0xb30000, 1);
+        this.bossHpBarFill.fillRoundedRect(
+            x + 3,
+            y + 3,
+            (largura - 6) * (this.boss.data.currentHp / this.boss.data.maxHp),
+            altura - 6,
+            6
+        );
+
+        this.bossHpText.setText(`${this.boss.data.currentHp} / ${this.boss.data.maxHp}`);
+    }
+
+    organizarProfundidade() {
+        if (this.player) {
+            this.player.setDepth(this.player.y);
+        }
+
         this.enemies.forEach((enemy) => {
-            enemy.hpBg.clear();
-            enemy.hpFill.clear();
-
-            if (enemy.data.isDead || enemy.data.isRemoving || !enemy.sprite.active) {
-                return;
+            if (enemy.sprite && enemy.sprite.active) {
+                enemy.sprite.setDepth(enemy.sprite.y);
             }
+        });
 
-            const largura = 60;
-            const altura = 8;
-            const x = enemy.sprite.x - largura / 2;
-            const y = enemy.sprite.y - 115;
+        if (this.boss && this.boss.sprite && this.boss.sprite.active) {
+            this.boss.sprite.setDepth(this.boss.sprite.y);
+        }
 
-            enemy.hpBg.fillStyle(0x000000, 0.8);
-            enemy.hpBg.fillRect(x, y, largura, altura);
+        this.boxes.forEach((box) => {
+            if (box.sprite && box.sprite.active) {
+                box.sprite.setDepth(box.sprite.y);
+            }
+        });
 
-            enemy.hpFill.fillStyle(0xff3b30, 1);
-            enemy.hpFill.fillRect(
-                x + 1,
-                y + 1,
-                (largura - 2) * (enemy.data.currentHp / enemy.data.maxHp),
-                altura - 2
-            );
+        this.items.forEach((item) => {
+            if (item.sprite && item.sprite.active) {
+                item.sprite.setDepth(item.sprite.y + 3);
+            }
         });
     }
 
@@ -959,6 +2172,40 @@ export class Phase1 extends Phaser.Scene {
         const alturaOriginal = sprite.frame.height;
         const escala = alturaAlvo / alturaOriginal;
         sprite.setScale(escala);
+    }
+
+    aplicarArremessoNaMorte(sprite, origemX, distanciaX, subidaY, quedaY, duracaoSubida, duracaoQueda, onQuedaComeca = null) {
+        if (!sprite || !sprite.active) return;
+
+        const xBase = sprite.x;
+        const yBase = sprite.y;
+        const origemGolpe = origemX !== null ? origemX : xBase - 40;
+        const direcaoEmpurrao = origemGolpe < xBase ? 1 : -1;
+
+        this.tweens.killTweensOf(sprite);
+
+        this.tweens.add({
+            targets: sprite,
+            x: xBase + (direcaoEmpurrao * distanciaX),
+            y: yBase - subidaY,
+            duration: duracaoSubida,
+            ease: "Quad.Out",
+            onComplete: () => {
+                if (!sprite.active) return;
+
+                if (onQuedaComeca) {
+                    onQuedaComeca(direcaoEmpurrao);
+                }
+
+                this.tweens.add({
+                    targets: sprite,
+                    x: xBase + (direcaoEmpurrao * (distanciaX + 34)),
+                    y: Phaser.Math.Clamp(yBase + quedaY, 600, 650),
+                    duration: duracaoQueda,
+                    ease: "Quad.In"
+                });
+            }
+        });
     }
 
     ajustarPortrait(img, maxLargura, maxAltura) {
@@ -973,11 +2220,6 @@ export class Phase1 extends Phaser.Scene {
     }
 
     finalizarCena() {
-        if (this.enemySpawnEvent) {
-            this.enemySpawnEvent.remove(false);
-            this.enemySpawnEvent = null;
-        }
-
         const audios = [
             this.phaseMusic,
             this.sfxPunch,
@@ -999,6 +2241,20 @@ export class Phase1 extends Phaser.Scene {
             enemy.hpFill?.destroy();
             enemy.sprite?.destroy();
         });
+
+        this.boxes.forEach((box) => {
+            box.sprite?.destroy();
+        });
+
+        this.items.forEach((item) => {
+            if (item.tween) item.tween.stop();
+            item.sprite?.destroy();
+        });
+
+        if (this.boss) {
+            this.boss.sprite?.destroy();
+            this.boss = null;
+        }
 
         this.phaseMusic = null;
         this.sfxPunch = null;
