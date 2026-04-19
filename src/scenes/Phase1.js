@@ -2019,10 +2019,10 @@ export class Phase1 extends Phaser.Scene {
         }
 
         this.tocarSom(this.sfxVictory, true);
-        this.mostrarMensagemFinal("FASE CONCLUÍDA!", "Voltando para a tela inicial...");
+        this.mostrarMensagemFinal("FASE 1 CONCLUÍDA!", "Indo para a proxima fase..");
 
         this.time.delayedCall(2600, () => {
-            this.scene.start("Start");
+            this.scene.start("Phase2");
         });
     }
 
