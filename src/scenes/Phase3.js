@@ -1,14 +1,15 @@
-export class Phase2 extends Phaser.Scene {
+export class Phase3 extends Phaser.Scene {
     constructor() {
-        super("Phase2");
+        super("Phase3");
     }
 
     preload() {
-        // Cenário da fase 2
-        this.load.image("phase2_layer1", "assets/phase2/layer1.jpg");
-        this.load.image("phase2_layer2", "assets/phase2/layer2.jpg");
-        this.load.image("phase2_layer3", "assets/phase2/layer3.jpg");
-        this.load.image("phase2_layer4", "assets/phase2/layer4.jpg");
+        // Cenário da fase 3   // Cenário da fase 3
+        this.load.image("phase3_bg1", "assets/phase3/layer1.jpg");
+        this.load.image("phase3_bg2", "assets/phase3/layer2.jpg");
+        this.load.image("phase3_bg3", "assets/phase3/layer3.jpg");
+        this.load.image("phase3_bg4", "assets/phase3/layer4.jpg");
+        this.load.image("phase3_ground", "assets/phase3/layer5.jpg");
 
         // HUD / Leona
         this.load.image("heroPortrait", "assets/player/portrait.png");
@@ -30,7 +31,7 @@ export class Phase2 extends Phaser.Scene {
         this.load.image("leona_death1", "assets/player/death1.png");
         this.load.image("leona_death2", "assets/player/death2.png");
 
-        // Inimigos (reaproveitando os sprites atuais)
+        // Inimigos reaproveitados
         this.load.image("enemy_idle", "assets/Enemy 1/idle.png");
         this.load.image("enemy_walk1", "assets/Enemy 1/walking1.png");
         this.load.image("enemy_walk2", "assets/Enemy 1/walking2.png");
@@ -47,20 +48,6 @@ export class Phase2 extends Phaser.Scene {
         this.load.image("enemy_death1", "assets/Enemy 1/death1.png");
         this.load.image("enemy_death2", "assets/Enemy 1/death2.png");
 
-
-        this.load.image("boss2_base", "assets/Boss 2/Base.png");
-        this.load.image("boss2_idle", "assets/Boss 2/idle.png");
-        this.load.image("boss2_attack", "assets/Boss 2/attack1.png");
-        this.load.image("boss2_damage", "assets/Boss 2/damage.png");
-        this.load.image("boss2_death1", "assets/Boss 2/death1.png");
-        this.load.image("boss2_death2", "assets/Boss 2/death2.png");
-        this.load.image("boss2_walk1", "assets/Boss 2/walk1.png");
-        this.load.image("boss2_walk2", "assets/Boss 2/walk2.png");
-        this.load.image("boss2_walk3", "assets/Boss 2/walk3.png");
-        this.load.image("boss2_walk4", "assets/Boss 2/walk4.png");
-        this.load.image("boss2_walk5", "assets/Boss 2/walk5.png");
-        this.load.image("potrait_kayla", "assets/Boss 2/potrait_kayla.png");
-
         // Áudios
         this.load.audio("phaseMusic", "assets/audio/phase1.mp3");
         this.load.audio("sfxPunch", "assets/audio/punch.mp3");
@@ -68,29 +55,38 @@ export class Phase2 extends Phaser.Scene {
         this.load.audio("sfxHurt", "assets/audio/hurt.mp3");
         this.load.audio("sfxDeath", "assets/audio/death.mp3");
         this.load.audio("sfxEnemyDamage", "assets/audio/damage_enemy.mp3");
-        this.load.audio("sfxVictory", "assets/audio/victory.mp3");
-        this.load.audio("sfxDialog", "assets/audio/dialog.mp3");
         this.load.audio("sfxBossDeath", "assets/audio/death_enemy.mp3");
+        this.load.audio("sfxVictory", "assets/audio/victory.mp3");
     }
 
     create() {
-        this.worldWidth = 4200;
+        const bg1 = this.textures.get("phase3_bg1").getSourceImage();
+        const bg2 = this.textures.get("phase3_bg2").getSourceImage();
+        const bg3 = this.textures.get("phase3_bg3").getSourceImage();
+        const bg4 = this.textures.get("phase3_bg4").getSourceImage();
+        const groundSource = this.textures.get("phase3_ground").getSourceImage();
+
+        this.bg1Width = bg1.width;
+        this.bg2Width = bg2.width;
+        this.bg3Width = bg3.width;
+        this.bg4Width = bg4.width;
+        this.groundTileWidth = groundSource.width;
+
+        this.worldWidth = this.bg1Width + this.bg2Width + this.bg3Width + this.bg4Width;
         this.worldHeight = 720;
 
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
         this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
-        this.levelComplete = false;
-        this.isGameEnding = false;
-        this.playerDeathPlayed = false;
-        this.lastDamageSourceX = null;
-        this.boardwalkTop = 620;
-        this.boardwalkBottom = 690;
-        this.boardwalkMid = 668;
+        this.groundY = this.worldHeight - groundSource.height;
+
+        this.walkTop = this.groundY + 34;
+        this.walkBottom = this.groundY + 92;
+        this.walkMid = this.groundY + 64;
 
         this.alturaPlayer = 212;
         this.alturaEnemy = 196;
-        this.alturaBoss = 225;
+        this.alturaBoss = 230;
 
         this.boss = null;
         this.bossFightStarted = false;
@@ -114,90 +110,83 @@ export class Phase2 extends Phaser.Scene {
         this.phaseStarted = false;
 
         this.waveConfigs = [
-            {
-                titulo: "BATALHA 1",
-                triggerX: 560,
-                blockX: 980,
-                enemies: [
-                    { x: 1030, y: 610, tipo: "light" },
-                    { x: 1170, y: 635, tipo: "light" }
-                ],
-                boxes: [
-                    { x: 920, y: 635 }
-                ]
-            },
-            {
-                titulo: "BATALHA 2",
-                triggerX: 1500,
-                blockX: 1980,
-                enemies: [
-                    { x: 2050, y: 600, tipo: "light" },
-                    { x: 2190, y: 630, tipo: "heavy" },
-                    { x: 2340, y: 590, tipo: "light" }
-                ],
-                boxes: [
-                    { x: 1910, y: 635 }
-                ]
-            },
-            {
-                titulo: "BATALHA 3",
-                triggerX: 2600,
-                blockX: 3120,
-                enemies: [
-                    { x: 3200, y: 600, tipo: "heavy" },
-                    { x: 3340, y: 635, tipo: "light" },
-                    { x: 3480, y: 590, tipo: "light" }
-                ],
-                boxes: [
-                    { x: 3010, y: 635 }
-                ]
-            },
-            
-            {
-                tipo: "boss",
-                titulo: "KAYLA",
-                triggerX: 3550,
-                blockX: 4040,
-                boss: { x: 4130, y: 680 }
-            }
-            
-        ];
+        {
+            titulo: "BATALHA 1",
+            triggerX: 420,
+            blockX: 640,
+            enemies: [
+                { x: 760, y: this.walkMid - 8, tipo: "light" },
+                { x: 890, y: this.walkMid + 14, tipo: "light" }
+            ],
+            boxes: [
+                { x: 640, y: this.walkBottom + 6 }
+            ]
+        },
+        {
+            titulo: "BATALHA 2",
+            triggerX: this.bg1Width + 260,
+            blockX: this.bg1Width + 480,
+            enemies: [
+                { x: this.bg1Width + 620, y: this.walkMid - 8, tipo: "light" },
+                { x: this.bg1Width + 760, y: this.walkMid + 16, tipo: "heavy" }
+            ],
+            boxes: []
+        },
+        {
+            titulo: "BATALHA 3",
+            triggerX: this.bg1Width + this.bg2Width + 220,
+            blockX: this.bg1Width + this.bg2Width + 430,
+            enemies: [
+                { x: this.bg1Width + this.bg2Width + 560, y: this.walkMid - 6, tipo: "light" },
+                { x: this.bg1Width + this.bg2Width + 700, y: this.walkMid + 14, tipo: "light" }
+            ],
+            boxes: []
+        },
+        {
+            titulo: "BATALHA 4",
+            triggerX: this.bg1Width + this.bg2Width + this.bg3Width + 180,
+            blockX: this.bg1Width + this.bg2Width + this.bg3Width + 360,
+            enemies: [
+                { x: this.bg1Width + this.bg2Width + this.bg3Width + 500, y: this.walkMid - 10, tipo: "heavy" },
+                { x: this.bg1Width + this.bg2Width + this.bg3Width + 620, y: this.walkMid + 12, tipo: "light" }
+            ],
+            boxes: []
+        },
+        {
+            tipo: "boss",
+            titulo: "MILÍCIA",
+            triggerX: this.worldWidth - 340,
+            blockX: this.worldWidth - 120,
+            boss: { x: this.worldWidth - 170, y: this.walkMid + 12 }
+        }
+    ];
 
         this.criarTexturasProcedurais();
         this.criarCenario();
-        this.criarDecoracaoPraia();
         this.criarAnimacoes();
         this.criarPlayer();
         this.criarHUD();
         this.criarMensagens();
         this.criarAudio();
 
-       this.dialogosIniciais = [
-        {
-            nome: "Daniel",
-            texto: "Leona, achei outra rota da Aurora. Eles tomaram conta da praia."
-        },
-        {
-            nome: "Leona",
-            texto: "Praia? Esses caras perderam completamente a noção."
-        },
-        {
-            nome: "Daniel",
-            texto: "Não é passeio. Tem capanga espalhado pelo calçadão inteiro."
-        },
-        {
-            nome: "Leona",
-            texto: "Ótimo. Então eu limpo a praia e sigo até o píer."
-        },
-        {
-            nome: "Daniel",
-            texto: "Fica esperta. Parece que eles já estavam esperando por você."
-        },
-        {
-            nome: "Leona",
-            texto: "Melhor ainda. Assim eu não preciso procurar."
-        }
-    ];
+        this.dialogosIniciais = [
+            {
+                nome: "Daniel",
+                texto: "Leona, a entrada do labirinto fica logo adiante. A milícia fechou o caminho."
+            },
+            {
+                nome: "Leona",
+                texto: "Então a Aurora montou uma linha de defesa antes do portão."
+            },
+            {
+                nome: "Daniel",
+                texto: "Sim. Ainda são os mesmos capangas por enquanto, mas no fim tem alguém comandando tudo."
+            },
+            {
+                nome: "Leona",
+                texto: "Ótimo. Eu derrubo a guarda e abro passagem."
+            }
+        ];
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
@@ -218,6 +207,40 @@ export class Phase2 extends Phaser.Scene {
         this.events.on("shutdown", this.finalizarCena, this);
         this.events.on("destroy", this.finalizarCena, this);
     }
+
+        criarFaixaParallax(key, y, alturaAlvo, depth, factor) {
+            const source = this.textures.get(key).getSourceImage();
+            const scale = alturaAlvo / source.height;
+            const largura = source.width * scale;
+
+            const quantidade = Math.ceil((this.worldWidth + 1600) / largura) + 1;
+            const sprites = [];
+
+            for (let i = 0; i < quantidade; i++) {
+                const sprite = this.add.image(i * largura, y, key)
+                    .setOrigin(0, 0)
+                    .setScale(scale)
+                    .setDepth(depth);
+
+                sprites.push(sprite);
+            }
+
+            return {
+                sprites,
+                largura,
+                factor
+            };
+        }
+
+        atualizarFaixaParallax(faixa) {
+            if (!faixa) return;
+
+            const offset = this.cameras.main.scrollX * faixa.factor;
+
+            faixa.sprites.forEach((sprite, i) => {
+                sprite.x = (i * faixa.largura) - offset;
+            });
+        }
 
     update() {
         if (this.levelComplete) {
@@ -246,10 +269,6 @@ export class Phase2 extends Phaser.Scene {
 
             if (this.boss?.sprite?.body) {
                 this.boss.sprite.body.setVelocity(0, 0);
-                if (this.boss.sprite.anims.currentAnim?.key !== "boss2_idle") {
-                    this.boss.sprite.play("boss2_idle", true);
-                    this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
-                }
             }
 
             if (Phaser.Input.Keyboard.JustDown(this.enterKey) && this.bossDialogActive) {
@@ -266,12 +285,10 @@ export class Phase2 extends Phaser.Scene {
 
         if (this.introDialogActive) {
             this.player.setVelocity(0, 0);
-
-            this.enemies.forEach((enemy) => {
-                if (enemy.sprite?.body) {
-                    enemy.sprite.body.setVelocity(0, 0);
-                }
-            });
+            if (this.player.anims.currentAnim?.key !== "leona_idle") {
+                this.player.play("leona_idle", true);
+                this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+            }
 
             if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
                 this.avancarDialogoInicial();
@@ -287,11 +304,11 @@ export class Phase2 extends Phaser.Scene {
         this.atualizarInimigos();
         this.atualizarItens();
         this.atualizarBoss();
-        this.atualizarBossHUD();
+
         this.atualizarHUDInimigos();
+        this.atualizarBossHUD();
         this.organizarProfundidade();
         this.verificarFimDaFase();
-
     }
 
     criarTexturasProcedurais() {
@@ -299,14 +316,12 @@ export class Phase2 extends Phaser.Scene {
 
         if (!this.textures.exists("crateBox")) {
             g.clear();
-            g.fillStyle(0x8a5a33, 1);
+            g.fillStyle(0x6d5643, 1);
             g.fillRoundedRect(0, 0, 64, 64, 6);
-            g.lineStyle(4, 0x523217, 1);
+            g.lineStyle(4, 0x3b2d21, 1);
             g.strokeRoundedRect(0, 0, 64, 64, 6);
             g.lineBetween(10, 10, 54, 54);
             g.lineBetween(54, 10, 10, 54);
-            g.lineStyle(2, 0x3f2410, 1);
-            g.strokeRect(6, 6, 52, 52);
             g.generateTexture("crateBox", 64, 64);
         }
 
@@ -321,137 +336,114 @@ export class Phase2 extends Phaser.Scene {
             g.generateTexture("snackItem", 32, 56);
         }
 
-        if (!this.textures.exists("danielPortrait")) {
+        if (!this.textures.exists("phase3BossPlaceholder")) {
             g.clear();
-            g.fillStyle(0x1f2a44, 1);
-            g.fillCircle(40, 40, 40);
-
-            g.fillStyle(0xf2c29b, 1);
-            g.fillCircle(40, 34, 20);
-
-            g.fillStyle(0x3b2a1d, 1);
-            g.fillRoundedRect(20, 18, 40, 12, 5);
-            g.fillRoundedRect(25, 42, 30, 12, 5);
+            g.fillStyle(0x1b1020, 1);
+            g.fillRoundedRect(0, 0, 140, 170, 12);
+            g.lineStyle(6, 0x8c2f39, 1);
+            g.strokeRoundedRect(0, 0, 140, 170, 12);
 
             g.fillStyle(0xffffff, 1);
-            g.fillCircle(33, 34, 3);
-            g.fillCircle(47, 34, 3);
+            g.fillCircle(48, 56, 10);
+            g.fillCircle(92, 56, 10);
 
-            g.fillStyle(0x111111, 1);
-            g.fillCircle(33, 34, 1);
-            g.fillCircle(47, 34, 1);
+            g.fillStyle(0xff4040, 1);
+            g.fillCircle(48, 56, 5);
+            g.fillCircle(92, 56, 5);
 
-            g.fillStyle(0x2e7d32, 1);
-            g.fillRoundedRect(26, 56, 28, 14, 4);
+            g.lineStyle(5, 0x8c2f39, 1);
+            g.lineBetween(28, 118, 112, 118);
 
-            g.generateTexture("danielPortrait", 80, 80);
+            g.fillStyle(0x343434, 1);
+            g.fillRoundedRect(38, 132, 64, 20, 6);
+
+            g.generateTexture("phase3BossPlaceholder", 140, 170);
         }
 
-        if (!this.textures.exists("beachPropBox")) {
+        if (!this.textures.exists("phase3BossPortrait")) {
             g.clear();
-            g.fillStyle(0xd9a441, 1);
-            g.fillRoundedRect(0, 0, 64, 64, 8);
+            g.fillStyle(0x1b1020, 1);
+            g.fillCircle(40, 40, 40);
 
-            g.lineStyle(4, 0x8a5a1f, 1);
-            g.strokeRoundedRect(0, 0, 64, 64, 8);
+            g.fillStyle(0xffffff, 1);
+            g.fillCircle(28, 30, 8);
+            g.fillCircle(52, 30, 8);
 
-            g.lineStyle(3, 0xb97a2a, 1);
-            g.lineBetween(8, 8, 56, 56);
-            g.lineBetween(56, 8, 8, 56);
+            g.fillStyle(0xff4040, 1);
+            g.fillCircle(28, 30, 4);
+            g.fillCircle(52, 30, 4);
 
-            g.generateTexture("beachPropBox", 64, 64);
+            g.fillStyle(0x8c2f39, 1);
+            g.fillRoundedRect(20, 50, 40, 14, 5);
+
+            g.generateTexture("phase3BossPortrait", 80, 80);
         }
+
         g.destroy();
     }
 
     criarCenario() {
-        this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x87ceeb)
+        this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x080b16)
             .setOrigin(0, 0)
             .setDepth(-100);
 
-        this.layerSky = this.add.image(-120, 0, "phase2_layer1")
+        this.layerScene1 = this.add.image(0, 0, "phase3_bg1")
             .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth + 240, 180)
             .setDepth(-60);
 
-        this.layerSea = this.add.image(-90, 170, "phase2_layer2")
+        this.layerScene2 = this.add.image(this.bg1Width, 0, "phase3_bg2")
             .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth + 180, 150)
+            .setDepth(-60);
+
+        this.layerScene3 = this.add.image(this.bg1Width + this.bg2Width, 0, "phase3_bg3")
+            .setOrigin(0, 0)
+            .setDepth(-60);
+
+        this.layerScene4 = this.add.image(this.bg1Width + this.bg2Width + this.bg3Width, 0, "phase3_bg4")
+            .setOrigin(0, 0)
+            .setDepth(-60);
+
+        this.groundTiles = [];
+        const totalGroundTiles = Math.ceil(this.worldWidth / this.groundTileWidth) + 1;
+
+        for (let i = 0; i < totalGroundTiles; i++) {
+            const tile = this.add.image(i * this.groundTileWidth, this.groundY, "phase3_ground")
+                .setOrigin(0, 0)
+                .setDepth(-40);
+
+            this.groundTiles.push(tile);
+        }
+
+        this.add.rectangle(0, this.groundY - 8, this.worldWidth, 16, 0x11162a, 0.35)
+            .setOrigin(0, 0)
             .setDepth(-50);
-
-        this.layerSand = this.add.image(-60, 300, "phase2_layer3")
-            .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth + 120, 330)
-            .setDepth(-40);
-
-        this.layerWalk = this.add.image(-30, 610, "phase2_layer4")
-            .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth + 60, 110)
-            .setDepth(-30);
-
-        this.add.rectangle(0, 640, this.worldWidth, 80, 0x000000, 0.06)
-            .setOrigin(0, 0)
-            .setDepth(-20);
     }
 
-    criarDecoracaoPraia() {
-        this.beachDecor = [];
-
-        const props = [
-            // areia
-            { x: 760,  y: 520, scale: 0.95, angle: -6 },
-            { x: 980,  y: 560, scale: 1.10, angle: 4 },
-            { x: 1250, y: 500, scale: 0.80, angle: -8 },
-            { x: 1580, y: 545, scale: 1.00, angle: 6 },
-            { x: 1960, y: 515, scale: 0.90, angle: -5 },
-            { x: 2280, y: 550, scale: 1.15, angle: 3 },
-            { x: 2670, y: 505, scale: 0.85, angle: -7 },
-            { x: 3010, y: 560, scale: 1.05, angle: 5 },
-            { x: 3380, y: 525, scale: 0.95, angle: -4 },
-            { x: 3740, y: 545, scale: 1.10, angle: 7 },
-
-            // perto da borda da calçada
-            { x: 1120, y: 610, scale: 0.85, angle: 0 },
-            { x: 1840, y: 615, scale: 0.95, angle: 0 },
-            { x: 2460, y: 608, scale: 0.88, angle: 0 },
-            { x: 3280, y: 612, scale: 0.92, angle: 0 }
-        ];
-
-        props.forEach((propData) => {
-            const prop = this.add.image(propData.x, propData.y, "beachPropBox")
-                .setOrigin(0.5, 1)
-                .setScale(propData.scale)
-                .setAngle(propData.angle)
-                .setAlpha(0.92);
-
-            prop.setDepth(prop.y - 2);
-            this.beachDecor.push(prop);
-        });
-    }
-
+   
     atualizarParallax() {
-        const scrollX = this.cameras.main.scrollX;
+        const scrollX = this.cameras.main.scrollX * 0.08;
 
-        if (this.layerSky) this.layerSky.x = -120 + (scrollX * 0.03);
-        if (this.layerSea) this.layerSea.x = -90 + (scrollX * 0.08);
-        if (this.layerSand) this.layerSand.x = -60 + (scrollX * 0.14);
-        if (this.layerWalk) this.layerWalk.x = -30 + (scrollX * 0.22);
+        if (this.layerScene1) this.layerScene1.x = 0 + scrollX;
+        if (this.layerScene2) this.layerScene2.x = this.bg1Width + scrollX;
+        if (this.layerScene3) this.layerScene3.x = this.bg1Width + this.bg2Width + scrollX;
+        if (this.layerScene4) this.layerScene4.x = this.bg1Width + this.bg2Width + this.bg3Width + scrollX;
+
+        if (this.groundTiles) {
+            this.groundTiles.forEach((tile, index) => {
+                tile.x = index * this.groundTileWidth;
+            });
+        }
     }
 
     criarAudio() {
-        this.phaseMusic = this.sound.add("phaseMusic", {
-            volume: 0.32,
-            loop: true
-        });
-
+        this.phaseMusic = this.sound.add("phaseMusic", { volume: 0.32, loop: true });
         this.sfxPunch = this.sound.add("sfxPunch", { volume: 0.5 });
         this.sfxKick = this.sound.add("sfxKick", { volume: 0.55 });
         this.sfxHurt = this.sound.add("sfxHurt", { volume: 0.6 });
         this.sfxDeath = this.sound.add("sfxDeath", { volume: 0.7 });
         this.sfxEnemyDamage = this.sound.add("sfxEnemyDamage", { volume: 0.6 });
-        this.sfxVictory = this.sound.add("sfxVictory", { volume: 0.8 });
-        this.sfxDialog = this.sound.add("sfxDialog", { volume: 0.45 });
         this.sfxBossDeath = this.sound.add("sfxBossDeath", { volume: 0.8 });
+        this.sfxVictory = this.sound.add("sfxVictory", { volume: 0.8 });
 
         if (!this.sound.locked) {
             this.phaseMusic.play();
@@ -466,121 +458,119 @@ export class Phase2 extends Phaser.Scene {
 
     tocarSom(audio, restart = false) {
         if (!audio) return;
-
-        if (restart) {
-            audio.stop();
-        }
-
+        if (restart) audio.stop();
         audio.play();
     }
 
-   criarMensagens() {
-    this.endBox = this.add.rectangle(640, 360, 620, 160, 0x000000, 0.75)
-        .setStrokeStyle(3, 0xffffff)
-        .setScrollFactor(0)
-        .setVisible(false)
-        .setAlpha(0)
-        .setDepth(9999);
+    criarMensagens() {
+        this.endBox = this.add.rectangle(640, 360, 620, 160, 0x000000, 0.75)
+            .setStrokeStyle(3, 0xffffff)
+            .setScrollFactor(0)
+            .setVisible(false)
+            .setAlpha(0)
+            .setDepth(9999);
 
-    this.endTitle = this.add.text(640, 335, "", {
-        fontSize: "34px",
-        color: "#ffffff",
-        fontStyle: "bold"
-    }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setAlpha(0).setDepth(10000);
+        this.endTitle = this.add.text(640, 335, "", {
+            fontSize: "34px",
+            color: "#ffffff",
+            fontStyle: "bold"
+        }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setAlpha(0).setDepth(10000);
 
-    this.endSub = this.add.text(640, 390, "", {
-        fontSize: "24px",
-        color: "#ffd166"
-    }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setAlpha(0).setDepth(10000);
+        this.endSub = this.add.text(640, 390, "", {
+            fontSize: "24px",
+            color: "#ffd166"
+        }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setAlpha(0).setDepth(10000);
 
-    this.waveText = this.add.text(640, 120, "", {
-        fontSize: "36px",
-        color: "#ffffff",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 6
-    }).setOrigin(0.5).setScrollFactor(0).setAlpha(0).setDepth(10000);
+        this.waveText = this.add.text(640, 120, "", {
+            fontSize: "36px",
+            color: "#ffffff",
+            fontStyle: "bold",
+            stroke: "#000000",
+            strokeThickness: 6
+        }).setOrigin(0.5).setScrollFactor(0).setAlpha(0).setDepth(10000);
 
-    this.dialogBg = this.add.rectangle(640, 135, 1160, 150, 0x000000, 0.8)
-        .setStrokeStyle(3, 0xffffff)
-        .setScrollFactor(0)
-        .setDepth(10020)
-        .setVisible(false);
+        this.dialogBg = this.add.rectangle(640, 135, 1160, 150, 0x000000, 0.78)
+            .setStrokeStyle(3, 0xffffff)
+            .setScrollFactor(0)
+            .setDepth(10020)
+            .setVisible(false);
 
-   this.dialogPortraitFrameLeona = this.add.circle(120, 135, 52, 0x1d1d1d)
-    .setStrokeStyle(3, 0xffffff)
-    .setScrollFactor(0)
-    .setDepth(10021)
-    .setVisible(false);
+        this.dialogPortraitFrameLeona = this.add.circle(120, 135, 52, 0x1d1d1d)
+            .setStrokeStyle(3, 0xffffff)
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
 
-this.dialogPortraitLeona = this.add.image(120, 135, "heroPortrait")
-    .setScrollFactor(0)
-    .setDepth(10022)
-    .setVisible(false);
-this.ajustarPortrait(this.dialogPortraitLeona, 86, 86);
+        this.dialogPortraitLeona = this.add.image(120, 135, "heroPortrait")
+            .setScrollFactor(0)
+            .setDepth(10022)
+            .setVisible(false);
+        this.ajustarPortrait(this.dialogPortraitLeona, 80, 80);
 
-this.dialogPortraitFrameDaniel = this.add.circle(1160, 135, 52, 0x1d1d1d)
-    .setStrokeStyle(3, 0xffffff)
-    .setScrollFactor(0)
-    .setDepth(10021)
-    .setVisible(false);
+        this.dialogPortraitFrameRight = this.add.circle(1160, 135, 52, 0x1d1d1d)
+            .setStrokeStyle(3, 0xffffff)
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
 
-this.dialogPortraitDaniel = this.add.image(1160, 135, "danielPortrait")
-    .setScrollFactor(0)
-    .setDepth(10022)
-    .setVisible(false);
-this.ajustarPortrait(this.dialogPortraitDaniel, 86, 86);
+        this.dialogPortraitRight = this.add.image(1160, 135, "danielPortrait")
+            .setScrollFactor(0)
+            .setDepth(10022)
+            .setVisible(false);
+        this.ajustarPortrait(this.dialogPortraitRight, 80, 80);
 
-this.dialogNome = this.add.text(205, 82, "", {
-    fontSize: "28px",
-    color: "#ffd166",
-    fontStyle: "bold"
-})
-    .setScrollFactor(0)
-    .setDepth(10021)
-    .setVisible(false);
+        this.dialogNome = this.add.text(205, 82, "", {
+            fontSize: "28px",
+            color: "#ffd166",
+            fontStyle: "bold"
+        })
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
 
-this.dialogTexto = this.add.text(205, 115, "", {
-    fontSize: "26px",
-    color: "#ffffff",
-    wordWrap: { width: 840 }
-})
-    .setScrollFactor(0)
-    .setDepth(10021)
-    .setVisible(false);
+        this.dialogTexto = this.add.text(205, 115, "", {
+            fontSize: "26px",
+            color: "#ffffff",
+            wordWrap: { width: 840 }
+        })
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
 
-this.dialogHint = this.add.text(1095, 185, "ENTER", {
-    fontSize: "20px",
-    color: "#dddddd",
-    fontStyle: "bold"
-})
-    .setOrigin(1, 0.5)
-    .setScrollFactor(0)
-    .setDepth(10021)
-    .setVisible(false);
+        this.dialogHint = this.add.text(1095, 185, "ENTER", {
+            fontSize: "20px",
+            color: "#dddddd",
+            fontStyle: "bold"
+        })
+            .setOrigin(1, 0.5)
+            .setScrollFactor(0)
+            .setDepth(10021)
+            .setVisible(false);
 
-    this.tweens.add({
-        targets: this.dialogHint,
-        alpha: 0.35,
-        duration: 700,
-        yoyo: true,
-        repeat: -1
-    });
-}
+        this.tweens.add({
+            targets: this.dialogHint,
+            alpha: 0.35,
+            duration: 700,
+            yoyo: true,
+            repeat: -1
+        });
+    }
 
     iniciarDialogoInicial() {
+        this.dialogPortraitRight.setTexture("danielPortrait");
+        this.ajustarPortrait(this.dialogPortraitRight, 80, 80);
+
         this.dialogBg.setVisible(true);
         this.dialogPortraitFrameLeona.setVisible(true);
         this.dialogPortraitLeona.setVisible(true);
-        this.dialogPortraitFrameDaniel.setVisible(true);
-        this.dialogPortraitDaniel.setVisible(true);
+        this.dialogPortraitFrameRight.setVisible(true);
+        this.dialogPortraitRight.setVisible(true);
         this.dialogNome.setVisible(true);
         this.dialogTexto.setVisible(true);
         this.dialogHint.setVisible(true);
+
         this.mostrarDialogoAtual();
     }
-
-  
 
     mostrarDialogoAtual() {
         const fala = this.dialogosIniciais[this.introDialogIndex];
@@ -593,12 +583,11 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
 
     atualizarRetratosDialogo(nomeFalante) {
         const leonaFalando = nomeFalante === "Leona";
-
         this.dialogPortraitLeona.setAlpha(leonaFalando ? 1 : 0.45);
-        this.dialogPortraitDaniel.setAlpha(leonaFalando ? 0.45 : 1);
+        this.dialogPortraitRight.setAlpha(leonaFalando ? 0.45 : 1);
 
         this.dialogPortraitFrameLeona.setStrokeStyle(3, leonaFalando ? 0xffd166 : 0xffffff, 1);
-        this.dialogPortraitFrameDaniel.setStrokeStyle(3, leonaFalando ? 0xffffff : 0xffd166, 1);
+        this.dialogPortraitFrameRight.setStrokeStyle(3, leonaFalando ? 0xffffff : 0xffd166, 1);
     }
 
     avancarDialogoInicial() {
@@ -612,8 +601,6 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
         this.mostrarDialogoAtual();
     }
 
-   
-
     encerrarDialogoInicial() {
         this.introDialogActive = false;
         this.phaseStarted = true;
@@ -621,13 +608,13 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
         this.dialogBg.setVisible(false);
         this.dialogPortraitFrameLeona.setVisible(false);
         this.dialogPortraitLeona.setVisible(false);
-        this.dialogPortraitFrameDaniel.setVisible(false);
-        this.dialogPortraitDaniel.setVisible(false);
+        this.dialogPortraitFrameRight.setVisible(false);
+        this.dialogPortraitRight.setVisible(false);
         this.dialogNome.setVisible(false);
         this.dialogTexto.setVisible(false);
         this.dialogHint.setVisible(false);
 
-        this.mostrarAvisoFase("FASE 2 - PRAIA AO ENTARDECER");
+        this.mostrarAvisoFase("FASE 3 - CAMINHO DO LABIRINTO");
     }
 
     mostrarMensagemFinal(titulo, subtitulo) {
@@ -659,7 +646,7 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
     }
 
     criarPlayer() {
-        this.player = this.physics.add.sprite(250, this.boardwalkMid, "leona_idle");
+        this.player = this.physics.add.sprite(250, this.walkMid, "leona_idle");
         this.player.setCollideWorldBounds(true);
         this.player.setOrigin(0.5, 1);
 
@@ -723,14 +710,13 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
             }
         ).setScrollFactor(0).setDepth(10000);
 
-
         this.bossHudBg = this.add.rectangle(930, 55, 470, 95, 0x000000, 0.45)
             .setStrokeStyle(2, 0xffffff)
             .setScrollFactor(0)
             .setDepth(9999)
             .setVisible(false);
 
-           this.bossNameText = this.add.text(720, 25, "KAYLA", {
+        this.bossNameText = this.add.text(720, 25, "MILÍCIA", {
             fontSize: "24px",
             color: "#ffffff",
             fontStyle: "bold"
@@ -819,42 +805,6 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
                 repeat: 0
             });
         }
-
-        if (!this.anims.exists("boss2_idle")) {
-            this.anims.create({
-                key: "boss2_idle",
-                frames: [{ key: "boss2_idle" }],
-                frameRate: 1,
-                repeat: -1
-            });
-        }
-
-        if (!this.anims.exists("boss2_walk")) {
-            this.anims.create({
-                key: "boss2_walk",
-                frames: [
-                    { key: "boss2_walk1" },
-                    { key: "boss2_walk2" },
-                    { key: "boss2_walk3" },
-                    { key: "boss2_walk4" },
-                    { key: "boss2_walk5" }
-                ],
-                frameRate: 8,
-                repeat: -1
-            });
-        }
-
-        if (!this.anims.exists("boss2_death")) {
-            this.anims.create({
-                key: "boss2_death",
-                frames: [
-                    { key: "boss2_death1" },
-                    { key: "boss2_death2" }
-                ],
-                frameRate: 4,
-                repeat: 0
-            });
-        }
     }
 
     verificarGatilhosFase() {
@@ -893,104 +843,122 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
         }
     }
 
-   iniciarDialogoBoss() {
-    if (this.bossIntroStarted || !this.pendingBossConfig) return;
+    iniciarDialogoBoss() {
+        if (this.bossIntroStarted || !this.pendingBossConfig) return;
 
-    this.bossIntroStarted = true;
-    this.bossIntroActive = true;
-    this.bossDialogActive = true;
-    this.bossIntroIndex = 0;
+        this.bossIntroStarted = true;
+        this.bossIntroActive = true;
+        this.bossDialogActive = true;
+        this.bossIntroIndex = 0;
 
-    this.bossDialogos = [
-        {
-            nome: "Kayla",
-            texto: "Então você é a garota que está acabando com os homens da Aurora."
-        },
-        {
-            nome: "Leona",
-            texto: "Se eles caíram tão fácil, o problema sempre foi a liderança."
-        },
-        {
-            nome: "Kayla",
-            texto: "Cuidado com o que diz. Minha espada encerra conversas bem rápido."
-        },
-        {
-            nome: "Leona",
-            texto: "Ótimo. Eu já estava cansada de ouvir desculpas."
-        },
-        {
-            nome: "Kayla",
-            texto: "Então venha. Vou te cortar antes que dê o próximo passo."
+        this.bossDialogos = [
+            {
+                nome: "Capitã",
+                texto: "Ninguém entra no labirinto sem passar por mim."
+            },
+            {
+                nome: "Leona",
+                texto: "Então sai da frente, porque eu não voltei até aqui para parar agora."
+            },
+            {
+                nome: "Capitã",
+                texto: "A milícia segura este portão. Se tentar forçar passagem, cai aqui mesmo."
+            },
+            {
+                nome: "Leona",
+                texto: "Ótimo. Então abre o combate."
+            }
+        ];
+
+        if (!this.boss) {
+            this.spawnBoss(this.pendingBossConfig.boss.x, this.pendingBossConfig.boss.y, false);
         }
-    ];
 
-    if (!this.boss) {
-        this.spawnBoss(this.pendingBossConfig.boss.x, this.pendingBossConfig.boss.y, false);
+        const dialogGap = 260;
+        const bossDialogX = Phaser.Math.Clamp(
+            this.pendingBossConfig.boss.x + 20,
+            220,
+            this.worldWidth - 120
+        );
+
+        const playerDialogX = Phaser.Math.Clamp(
+            bossDialogX - dialogGap,
+            80,
+            this.worldWidth - 320
+        );
+
+        this.player.setVelocity(0, 0);
+        this.player.x = playerDialogX;
+        this.player.y = Phaser.Math.Clamp(this.walkMid + 6, this.walkTop + 4, this.walkBottom);
+        this.player.setFlipX(false);
+        this.player.play("leona_idle", true);
+        this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+
+        if (this.boss?.sprite?.active) {
+            this.boss.sprite.setVelocity(0, 0);
+            this.boss.sprite.x = bossDialogX;
+            this.boss.sprite.y = Phaser.Math.Clamp(
+                this.pendingBossConfig.boss.y,
+                this.walkTop + 4,
+                this.walkBottom
+            );
+            this.boss.sprite.setTexture("phase3BossPlaceholder");
+            this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
+
+            // boss olhando para a Leona
+            this.boss.sprite.setFlipX(true);
+        }
+
+        this.dialogPortraitRight.setTexture("phase3BossPortrait");
+        this.ajustarPortrait(this.dialogPortraitRight, 80, 80);
+
+        this.dialogBg.setVisible(true);
+        this.dialogPortraitFrameLeona.setVisible(true);
+        this.dialogPortraitLeona.setVisible(true);
+        this.dialogPortraitFrameRight.setVisible(true);
+        this.dialogPortraitRight.setVisible(true);
+        this.dialogNome.setVisible(true);
+        this.dialogTexto.setVisible(true);
+        this.dialogHint.setVisible(true);
+
+        this.mostrarDialogoBossAtual();
     }
 
-    this.player.setVelocity(0, 0);
-    this.player.play("leona_idle", true);
-    this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+    mostrarDialogoBossAtual() {
+        const fala = this.bossDialogos[this.bossIntroIndex];
+        if (!fala) return;
 
-    if (this.boss?.sprite?.active) {
-        this.boss.sprite.setVelocity(0, 0);
-        this.boss.sprite.play("boss2_idle", true);
-        this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
-
-      
-        this.boss.sprite.setFlipX(true);
+        this.dialogNome.setText(fala.nome);
+        this.dialogTexto.setText(fala.texto);
+        this.atualizarRetratosDialogo(fala.nome);
     }
 
-    this.dialogPortraitDaniel.setTexture("potrait_kayla");
-    this.ajustarPortrait(this.dialogPortraitDaniel, 86, 86);
+    avancarDialogoBoss() {
+        this.bossIntroIndex++;
 
-    this.dialogBg.setVisible(true);
-    this.dialogPortraitFrameLeona.setVisible(true);
-    this.dialogPortraitLeona.setVisible(true);
-    this.dialogPortraitFrameDaniel.setVisible(true);
-    this.dialogPortraitDaniel.setVisible(true);
-    this.dialogNome.setVisible(true);
-    this.dialogTexto.setVisible(true);
-    this.dialogHint.setVisible(true);
+        if (this.bossIntroIndex >= this.bossDialogos.length) {
+            this.encerrarDialogoBoss();
+            return;
+        }
 
-    this.mostrarDialogoBossAtual();
-}
-
-mostrarDialogoBossAtual() {
-    const fala = this.bossDialogos[this.bossIntroIndex];
-    if (!fala) return;
-
-    this.dialogNome.setText(fala.nome);
-    this.dialogTexto.setText(fala.texto);
-    this.atualizarRetratosDialogo(fala.nome);
-}
-
-avancarDialogoBoss() {
-    this.bossIntroIndex++;
-
-    if (this.bossIntroIndex >= this.bossDialogos.length) {
-        this.encerrarDialogoBoss();
-        return;
+        this.mostrarDialogoBossAtual();
     }
 
-    this.mostrarDialogoBossAtual();
-}
+    encerrarDialogoBoss() {
+        this.bossIntroActive = false;
+        this.bossDialogActive = false;
 
-encerrarDialogoBoss() {
-    this.bossIntroActive = false;
-    this.bossDialogActive = false;
+        this.dialogBg.setVisible(false);
+        this.dialogPortraitFrameLeona.setVisible(false);
+        this.dialogPortraitLeona.setVisible(false);
+        this.dialogPortraitFrameRight.setVisible(false);
+        this.dialogPortraitRight.setVisible(false);
+        this.dialogNome.setVisible(false);
+        this.dialogTexto.setVisible(false);
+        this.dialogHint.setVisible(false);
 
-    this.dialogBg.setVisible(false);
-    this.dialogPortraitFrameLeona.setVisible(false);
-    this.dialogPortraitLeona.setVisible(false);
-    this.dialogPortraitFrameDaniel.setVisible(false);
-    this.dialogPortraitDaniel.setVisible(false);
-    this.dialogNome.setVisible(false);
-    this.dialogTexto.setVisible(false);
-    this.dialogHint.setVisible(false);
-
-    this.iniciarLutaBoss();
-}
+        this.iniciarLutaBoss();
+    }
 
     iniciarLutaBoss() {
         if (this.bossFightStarted || !this.pendingBossConfig) return;
@@ -1001,53 +969,50 @@ encerrarDialogoBoss() {
             this.spawnBoss(this.pendingBossConfig.boss.x, this.pendingBossConfig.boss.y, true);
         }
 
-        if (this.boss?.sprite?.active) {
-            this.boss.sprite.play("boss2_idle", true);
+       if (this.boss?.sprite?.active) {
+            this.boss.sprite.setTexture("phase3BossPlaceholder");
             this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
-            this.boss.sprite.setFlipX(false);
+
+            // boss continua à direita da Leona
+            this.boss.sprite.setFlipX(true);
+            this.boss.sprite.x = Math.max(this.boss.sprite.x, this.player.x + 220);
         }
 
         this.bossHudBg.setVisible(true);
         this.bossNameText.setVisible(true);
         this.bossHpText.setVisible(true);
 
-        this.mostrarAvisoFase("KAYLA");
+        this.mostrarAvisoFase("BOSS FIGHT!");
     }
 
-
     spawnBoss(x, y, exibirHud = false) {
-            const sprite = this.physics.add.sprite(x, y, "boss2_idle");
-            sprite.setOrigin(0.5, 1);
-            sprite.setCollideWorldBounds(true);
+        const sprite = this.physics.add.sprite(x, y, "phase3BossPlaceholder");
+        sprite.setOrigin(0.5, 1);
+        sprite.setCollideWorldBounds(true);
 
-            this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            sprite.play("boss2_idle", true);
+        this.ajustarEscalaSprite(sprite, this.alturaBoss);
 
-            sprite.on(Phaser.Animations.Events.ANIMATION_UPDATE, () => {
-                this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            });
+        this.boss = {
+            sprite,
+            data: {
+                maxHp: 340,
+                currentHp: 340,
+                speed: 82,
+                damage: 20,
+                isDead: false,
+                isAttacking: false,
+                isHurt: false,
+                attackCooldown: 980,
+                lastAttackTime: 0,
+                attackRangeX: 115,
+                attackRangeY: 60
+            }
+        };
 
-            this.boss = {
-                sprite,
-                data: {
-                    maxHp: 320,
-                    currentHp: 320,
-                    speed: 88,
-                    damage: 24,
-                    isDead: false,
-                    isAttacking: false,
-                    isHurt: false,
-                    attackCooldown: 950,
-                    lastAttackTime: 0,
-                    attackRangeX: 122,
-                    attackRangeY: 56
-                }
-            };
-
-            this.bossHudBg.setVisible(exibirHud);
-            this.bossNameText.setVisible(exibirHud);
-            this.bossHpText.setVisible(exibirHud);
-        }
+        this.bossHudBg.setVisible(exibirHud);
+        this.bossNameText.setVisible(exibirHud);
+        this.bossHpText.setVisible(exibirHud);
+    }
 
     finalizarWave() {
         this.waveActive = false;
@@ -1056,7 +1021,7 @@ encerrarDialogoBoss() {
     }
 
     spawnEnemy(x, y, tipo = "light") {
-        const yFinal = Phaser.Math.Clamp(y, this.boardwalkTop + 8, this.boardwalkBottom);
+        const yFinal = Phaser.Math.Clamp(y, this.walkTop + 8, this.walkBottom);
 
         const sprite = this.physics.add.sprite(x, yFinal, "enemy_idle");
         sprite.setOrigin(0.5, 1);
@@ -1154,9 +1119,7 @@ encerrarDialogoBoss() {
                 y: groundY,
                 duration: 500,
                 ease: "Bounce.Out",
-                onComplete: () => {
-                    this.iniciarBalancoDoItem(item);
-                }
+                onComplete: () => this.iniciarBalancoDoItem(item)
             });
         } else {
             this.tweens.add({
@@ -1164,9 +1127,7 @@ encerrarDialogoBoss() {
                 y: groundY - 25,
                 duration: 260,
                 ease: "Back.Out",
-                onComplete: () => {
-                    this.iniciarBalancoDoItem(item);
-                }
+                onComplete: () => this.iniciarBalancoDoItem(item)
             });
         }
     }
@@ -1202,15 +1163,10 @@ encerrarDialogoBoss() {
         if (!item || item.picked) return;
 
         item.picked = true;
-
-        if (item.tween) {
-            item.tween.stop();
-        }
+        if (item.tween) item.tween.stop();
 
         this.currentHp += item.heal;
-        if (this.currentHp > this.maxHp) {
-            this.currentHp = this.maxHp;
-        }
+        if (this.currentHp > this.maxHp) this.currentHp = this.maxHp;
 
         this.atualizarHUD();
 
@@ -1220,9 +1176,7 @@ encerrarDialogoBoss() {
             scaleX: 1.35,
             scaleY: 1.35,
             duration: 150,
-            onComplete: () => {
-                item.sprite.destroy();
-            }
+            onComplete: () => item.sprite.destroy()
         });
     }
 
@@ -1296,8 +1250,8 @@ encerrarDialogoBoss() {
             }
         }
 
-        if (this.player.y < this.boardwalkTop) this.player.y = this.boardwalkTop;
-        if (this.player.y > this.boardwalkBottom) this.player.y = this.boardwalkBottom;
+        if (this.player.y < this.walkTop) this.player.y = this.walkTop;
+        if (this.player.y > this.walkBottom) this.player.y = this.walkBottom;
 
         if (this.player.x > this.currentLimitX) {
             this.player.x = this.currentLimitX;
@@ -1324,9 +1278,7 @@ encerrarDialogoBoss() {
         const dano = step === 1 ? 10 : step === 2 ? 12 : 16;
         const alcanceX = step === 3 ? 110 : 90;
         const alcanceY = 55;
-
-        let duracao = 180;
-        if (step === 3) duracao = 210;
+        let duracao = step === 3 ? 210 : 180;
 
         this.time.delayedCall(55, () => {
             this.tentarAcertarAlvos(dano, alcanceX, alcanceY);
@@ -1355,46 +1307,31 @@ encerrarDialogoBoss() {
         }
     }
 
-   voadora() {
-    const custoVida = 4;
+    voadora() {
+        this.inAction = true;
+        this.isPunching = false;
+        this.comboStep = 0;
+        this.punchBuffer = 0;
 
-    if (this.currentHp <= custoVida) {
-        return;
+        this.player.setVelocity(0, 0);
+        this.player.anims.stop();
+        this.player.setTexture("leona_kick");
+        this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+
+        this.tocarSom(this.sfxKick, true);
+
+        this.time.delayedCall(50, () => {
+            this.tentarAcertarAlvos(20, 120, 60);
+        });
+
+        this.time.delayedCall(240, () => {
+            if (!this.isDead) {
+                this.inAction = false;
+                this.player.play("leona_idle", true);
+                this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+            }
+        });
     }
-
-    this.currentHp -= custoVida;
-    if (this.currentHp < 1) {
-        this.currentHp = 1;
-    }
-
-    this.atualizarHUD();
-
-    this.inAction = true;
-    this.isPunching = false;
-    this.comboStep = 0;
-    this.punchBuffer = 0;
-
-    this.player.setVelocity(0, 0);
-    this.player.anims.stop();
-    this.player.setTexture("leona_kick");
-    this.ajustarEscalaSprite(this.player, this.alturaPlayer);
-
-    this.tocarSom(this.sfxKick, true);
-
-    this.time.delayedCall(50, () => {
-        this.tentarAcertarAlvos(20, 120, 60);
-    });
-
-    this.time.delayedCall(240, () => {
-        if (!this.isDead) {
-            this.inAction = false;
-            this.player.play("leona_idle", true);
-            this.ajustarEscalaSprite(this.player, this.alturaPlayer);
-        }
-    });
-}
-
-   
 
     tentarAcertarAlvos(dano, alcanceX, alcanceY) {
         this.tentarAcertarInimigos(dano, alcanceX, alcanceY);
@@ -1418,262 +1355,6 @@ encerrarDialogoBoss() {
 
         if (acertouNaFrente && dy <= alcanceY + 10) {
             this.danoNoBoss(dano);
-        }
-    }
-
-    atualizarBoss() {
-        if (!this.boss || this.boss.data.isDead || !this.bossFightStarted) return;
-
-        const sprite = this.boss.sprite;
-        const data = this.boss.data;
-
-        if (this.isDead) {
-            sprite.body.setVelocity(0, 0);
-            if (sprite.anims.currentAnim?.key !== "boss2_idle") {
-                sprite.play("boss2_idle", true);
-                this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            }
-            return;
-        }
-
-        if (data.isAttacking || data.isHurt) {
-            sprite.body.setVelocity(0, 0);
-            return;
-        }
-
-        const dx = this.player.x - sprite.x;
-        const dy = this.player.y - sprite.y;
-
-        const distanciaX = Math.abs(dx);
-        const distanciaY = Math.abs(dy);
-
-        if (distanciaX <= data.attackRangeX && distanciaY <= data.attackRangeY) {
-            if (this.time.now > data.lastAttackTime + data.attackCooldown) {
-                sprite.body.setVelocity(0, 0);
-                this.atacarComBoss();
-                return;
-            }
-
-            const vx = dx < 0 ? -26 : 26;
-            const vy = dy < 0 ? -18 : 18;
-            sprite.body.setVelocity(vx, vy);
-
-            if (vx < 0) sprite.setFlipX(true);
-            if (vx > 0) sprite.setFlipX(false);
-
-            if (sprite.anims.currentAnim?.key !== "boss2_walk") {
-                sprite.play("boss2_walk", true);
-                this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            }
-
-            if (sprite.y < this.boardwalkTop) sprite.y = this.boardwalkTop;
-            if (sprite.y > this.boardwalkBottom) sprite.y = this.boardwalkBottom;
-            return;
-        }
-
-        let vx = 0;
-        let vy = 0;
-
-        if (dx < -6) vx = -data.speed;
-        if (dx > 6) vx = data.speed;
-        if (dy < -6) vy = -data.speed * 0.55;
-        if (dy > 6) vy = data.speed * 0.55;
-
-        if (vx !== 0 && vy !== 0) {
-            vx *= 0.7071;
-            vy *= 0.7071;
-        }
-
-        sprite.body.setVelocity(vx, vy);
-
-        if (vx < 0) sprite.setFlipX(true);
-        if (vx > 0) sprite.setFlipX(false);
-
-        const moving = vx !== 0 || vy !== 0;
-
-        if (moving) {
-            if (sprite.anims.currentAnim?.key !== "boss2_walk") {
-                sprite.play("boss2_walk", true);
-                this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            }
-        } else {
-            if (sprite.anims.currentAnim?.key !== "boss2_idle") {
-                sprite.play("boss2_idle", true);
-                this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            }
-        }
-
-        if (sprite.y < this.boardwalkTop) sprite.y = this.boardwalkTop;
-        if (sprite.y > this.boardwalkBottom) sprite.y = this.boardwalkBottom;
-    }
-
-    atacarComBoss() {
-        if (!this.boss || this.boss.data.isDead || this.boss.data.isAttacking || this.boss.data.isHurt) return;
-
-        const sprite = this.boss.sprite;
-        const data = this.boss.data;
-
-        data.isAttacking = true;
-        data.lastAttackTime = this.time.now;
-
-        sprite.body.setVelocity(0, 0);
-        sprite.anims.stop();
-        sprite.setTexture("boss2_attack");
-        this.ajustarEscalaSprite(sprite, this.alturaBoss);
-
-        this.tocarSom(this.sfxPunch, true);
-
-        this.time.delayedCall(170, () => {
-            if (!this.boss || this.boss.data.isDead || this.isDead) return;
-
-            const dx = Math.abs(this.player.x - sprite.x);
-            const dy = Math.abs(this.player.y - sprite.y);
-
-            if (dx <= data.attackRangeX + 10 && dy <= data.attackRangeY + 8) {
-                this.tomarDano(data.damage, sprite.x);
-            }
-        });
-
-        this.time.delayedCall(360, () => {
-            if (this.boss && !this.boss.data.isDead) {
-                data.isAttacking = false;
-                sprite.play("boss2_idle", true);
-                this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            }
-        });
-    }
-
-    danoNoBoss(valor) {
-        if (!this.boss || this.boss.data.isDead) return;
-
-        const sprite = this.boss.sprite;
-        const data = this.boss.data;
-
-        data.currentHp -= valor;
-        if (data.currentHp < 0) data.currentHp = 0;
-
-        data.isHurt = true;
-        data.isAttacking = false;
-        sprite.body.setVelocity(0, 0);
-        sprite.anims.stop();
-        sprite.setTexture("boss2_damage");
-        this.ajustarEscalaSprite(sprite, this.alturaBoss);
-        this.tocarSom(this.sfxEnemyDamage, true);
-
-        const empurrao = this.player.flipX ? -28 : 28;
-        sprite.x += empurrao;
-
-        if (data.currentHp <= 0) {
-            this.morrerBoss(this.player.x);
-            return;
-        }
-
-        this.time.delayedCall(180, () => {
-            if (this.boss && !this.boss.data.isDead) {
-                data.isHurt = false;
-                sprite.play("boss2_idle", true);
-                this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            }
-        });
-    }
-
-    morrerBoss(origemX = null) {
-        if (!this.boss || this.boss.data.isDead) return;
-
-        const sprite = this.boss.sprite;
-        const data = this.boss.data;
-
-        data.isDead = true;
-        data.isAttacking = false;
-        data.isHurt = false;
-
-        sprite.body.setVelocity(0, 0);
-        sprite.anims.stop();
-        sprite.setTexture("boss2_damage");
-        this.ajustarEscalaSprite(sprite, this.alturaBoss);
-        this.tocarSom(this.sfxBossDeath, true);
-
-        this.aplicarArremessoNaMorte(
-            sprite,
-            origemX,
-            54,
-            26,
-            16,
-            140,
-            260,
-            () => {
-                if (!sprite.active) return;
-                sprite.play("boss2_death", true);
-                this.ajustarEscalaSprite(sprite, this.alturaBoss);
-            }
-        );
-
-        this.tweens.add({
-            targets: sprite,
-            alpha: 0.85,
-            duration: 500
-        });
-    }
-
-
-    atualizarBossHUD() {
-        this.bossHpBarBg.clear();
-        this.bossHpBarFill.clear();
-
-        if (!this.boss || this.boss.data.isDead || !this.bossFightStarted) {
-            this.bossHudBg.setVisible(false);
-            this.bossNameText.setVisible(false);
-            this.bossHpText.setVisible(false);
-            return;
-        }
-
-        this.bossHudBg.setVisible(true);
-        this.bossNameText.setVisible(true);
-        this.bossHpText.setVisible(true);
-
-        const x = 720;
-        const y = 50;
-        const largura = 260;
-        const altura = 22;
-
-        this.bossHpBarBg.fillStyle(0x222222, 1);
-        this.bossHpBarBg.fillRoundedRect(x, y, largura, altura, 8);
-        this.bossHpBarBg.lineStyle(2, 0xffffff, 1);
-        this.bossHpBarBg.strokeRoundedRect(x, y, largura, altura, 8);
-
-        this.bossHpBarFill.fillStyle(0xb30000, 1);
-        this.bossHpBarFill.fillRoundedRect(
-            x + 3,
-            y + 3,
-            (largura - 6) * (this.boss.data.currentHp / this.boss.data.maxHp),
-            altura - 6,
-            6
-        );
-
-        this.bossHpText.setText(`${this.boss.data.currentHp} / ${this.boss.data.maxHp}`);
-    }
-
-
-    verificarFimDaFase() {
-        if (this.isGameEnding || !this.waveActive) return;
-
-        const configAtual = this.waveConfigs[this.currentWaveIndex];
-        if (!configAtual) return;
-
-        if (configAtual.tipo === "wave" || !configAtual.tipo) {
-            const vivos = this.enemies.filter(
-                (enemy) => !enemy.data.isDead && !enemy.data.isRemoving
-            ).length;
-
-            if (vivos === 0) {
-                this.finalizarWave();
-            }
-        }
-
-        if (configAtual.tipo === "boss") {
-            if (this.bossFightStarted && this.boss && this.boss.data.isDead) {
-                this.concluirVitoria();
-            }
         }
     }
 
@@ -1751,7 +1432,7 @@ encerrarDialogoBoss() {
             scaleY: 1.15,
             duration: 180,
             onComplete: () => {
-                const itemY = Phaser.Math.Clamp(box.sprite.y - 4, 580, 645);
+                const itemY = Phaser.Math.Clamp(box.sprite.y - 4, this.walkTop + 8, this.walkBottom + 8);
                 this.spawnHealthItem(box.sprite.x, itemY, "rise");
                 box.sprite.destroy();
             }
@@ -1813,7 +1494,7 @@ encerrarDialogoBoss() {
         }
 
         const alvoX = this.player.x + data.attackOffsetX;
-        const alvoY = Phaser.Math.Clamp(this.player.y + data.laneOffsetY, this.boardwalkTop + 4, this.boardwalkBottom);
+        const alvoY = Phaser.Math.Clamp(this.player.y + data.laneOffsetY, this.walkTop + 4, this.walkBottom);
 
         const dxPlayer = this.player.x - sprite.x;
         const dyPlayer = this.player.y - sprite.y;
@@ -1864,8 +1545,8 @@ encerrarDialogoBoss() {
                 sprite.play("enemy_idle", true);
             }
 
-            if (sprite.y < 560) sprite.y = 560;
-            if (sprite.y > 650) sprite.y = 650;
+            if (sprite.y < this.walkTop) sprite.y = this.walkTop;
+            if (sprite.y > this.walkBottom) sprite.y = this.walkBottom;
             return;
         }
 
@@ -1910,9 +1591,8 @@ encerrarDialogoBoss() {
             sprite.play("enemy_idle", true);
         }
 
-
-        if (sprite.y < this.boardwalkTop) sprite.y = this.boardwalkTop;
-        if (sprite.y > this.boardwalkBottom) sprite.y = this.boardwalkBottom;
+        if (sprite.y < this.walkTop) sprite.y = this.walkTop;
+        if (sprite.y > this.walkBottom) sprite.y = this.walkBottom;
     }
 
     atacarComInimigo(enemy) {
@@ -1963,6 +1643,100 @@ encerrarDialogoBoss() {
         });
     }
 
+    atualizarBoss() {
+        if (!this.boss || this.boss.data.isDead || !this.bossFightStarted) return;
+
+        const sprite = this.boss.sprite;
+        const data = this.boss.data;
+
+        if (this.isDead) {
+            sprite.body.setVelocity(0, 0);
+            return;
+        }
+
+        if (data.isAttacking || data.isHurt) {
+            sprite.body.setVelocity(0, 0);
+            return;
+        }
+
+        const dx = this.player.x - sprite.x;
+        const dy = this.player.y - sprite.y;
+
+        const distanciaX = Math.abs(dx);
+        const distanciaY = Math.abs(dy);
+
+        if (distanciaX <= data.attackRangeX && distanciaY <= data.attackRangeY) {
+            if (this.time.now > data.lastAttackTime + data.attackCooldown) {
+                sprite.body.setVelocity(0, 0);
+                this.atacarComBoss();
+                return;
+            }
+
+            const vx = dx < 0 ? -24 : 24;
+            const vy = dy < 0 ? -18 : 18;
+            sprite.body.setVelocity(vx, vy);
+
+            if (vx < 0) sprite.setFlipX(true);
+            if (vx > 0) sprite.setFlipX(false);
+
+            if (sprite.y < this.walkTop) sprite.y = this.walkTop;
+            if (sprite.y > this.walkBottom) sprite.y = this.walkBottom;
+            return;
+        }
+
+        let vx = 0;
+        let vy = 0;
+
+        if (dx < -6) vx = -data.speed;
+        if (dx > 6) vx = data.speed;
+        if (dy < -6) vy = -data.speed * 0.55;
+        if (dy > 6) vy = data.speed * 0.55;
+
+        if (vx !== 0 && vy !== 0) {
+            vx *= 0.7071;
+            vy *= 0.7071;
+        }
+
+        sprite.body.setVelocity(vx, vy);
+
+        if (vx < 0) sprite.setFlipX(true);
+        if (vx > 0) sprite.setFlipX(false);
+
+        if (sprite.y < this.walkTop) sprite.y = this.walkTop;
+        if (sprite.y > this.walkBottom) sprite.y = this.walkBottom;
+    }
+
+    atacarComBoss() {
+        if (!this.boss || this.boss.data.isDead || this.boss.data.isAttacking || this.boss.data.isHurt) return;
+
+        const sprite = this.boss.sprite;
+        const data = this.boss.data;
+
+        data.isAttacking = true;
+        data.lastAttackTime = this.time.now;
+
+        sprite.body.setVelocity(0, 0);
+        sprite.setTint(0xff8080);
+
+        this.time.delayedCall(180, () => {
+            if (!this.boss || this.boss.data.isDead || this.isDead) return;
+
+            const dx = Math.abs(this.player.x - sprite.x);
+            const dy = Math.abs(this.player.y - sprite.y);
+
+            if (dx <= data.attackRangeX + 10 && dy <= data.attackRangeY + 8) {
+                this.tomarDano(data.damage, sprite.x);
+            }
+        });
+
+        this.time.delayedCall(360, () => {
+            if (this.boss && !this.boss.data.isDead) {
+                data.isAttacking = false;
+                sprite.clearTint();
+            }
+        });
+    }
+
     aplicarArremessoNaMorte(sprite, origemX, distanciaX, subidaY, quedaY, duracaoSubida, duracaoQueda, onQuedaComeca = null) {
         if (!sprite || !sprite.active) return;
 
@@ -1989,7 +1763,7 @@ encerrarDialogoBoss() {
                 this.tweens.add({
                     targets: sprite,
                     x: xBase + (direcaoEmpurrao * (distanciaX + 34)),
-                    y: Phaser.Math.Clamp(yBase + quedaY, 600, 650),
+                    y: Phaser.Math.Clamp(yBase + quedaY, this.walkTop + 8, this.walkBottom + 12),
                     duration: duracaoQueda,
                     ease: "Quad.In"
                 });
@@ -2080,9 +1854,7 @@ encerrarDialogoBoss() {
         if (data.isDead || data.isRemoving) return;
 
         data.currentHp -= valor;
-        if (data.currentHp < 0) {
-            data.currentHp = 0;
-        }
+        if (data.currentHp < 0) data.currentHp = 0;
 
         data.isHurt = true;
         data.isAttacking = false;
@@ -2141,7 +1913,7 @@ encerrarDialogoBoss() {
         );
 
         if (Phaser.Math.Between(0, 100) < 28) {
-            const dropY = Phaser.Math.Clamp(sprite.y - 8, 580, 640);
+            const dropY = Phaser.Math.Clamp(sprite.y - 8, this.walkTop + 6, this.walkBottom + 6);
             this.spawnHealthItem(sprite.x, dropY, "fall");
         }
 
@@ -2156,8 +1928,97 @@ encerrarDialogoBoss() {
         });
     }
 
+    danoNoBoss(valor) {
+        if (!this.boss || this.boss.data.isDead) return;
 
-   concluirVitoria() {
+        const sprite = this.boss.sprite;
+        const data = this.boss.data;
+
+        data.currentHp -= valor;
+        if (data.currentHp < 0) data.currentHp = 0;
+
+        data.isHurt = true;
+        data.isAttacking = false;
+        sprite.body.setVelocity(0, 0);
+        sprite.clearTint();
+        sprite.setTint(0xaa4444);
+        this.tocarSom(this.sfxEnemyDamage, true);
+
+        const empurrao = this.player.flipX ? -28 : 28;
+        sprite.x += empurrao;
+
+        if (data.currentHp <= 0) {
+            this.morrerBoss(this.player.x);
+            return;
+        }
+
+        this.time.delayedCall(180, () => {
+            if (this.boss && !this.boss.data.isDead) {
+                data.isHurt = false;
+                sprite.clearTint();
+            }
+        });
+    }
+
+    morrerBoss(origemX = null) {
+        if (!this.boss || this.boss.data.isDead) return;
+
+        const sprite = this.boss.sprite;
+        const data = this.boss.data;
+
+        data.isDead = true;
+        data.isAttacking = false;
+        data.isHurt = false;
+
+        sprite.body.setVelocity(0, 0);
+        sprite.clearTint();
+        this.tocarSom(this.sfxBossDeath, true);
+
+        this.aplicarArremessoNaMorte(
+            sprite,
+            origemX,
+            54,
+            26,
+            16,
+            140,
+            260,
+            () => {
+                if (!sprite.active) return;
+                sprite.setTint(0x552222);
+            }
+        );
+
+        this.tweens.add({
+            targets: sprite,
+            alpha: 0.85,
+            duration: 500
+        });
+    }
+
+    verificarFimDaFase() {
+        if (this.isGameEnding || !this.waveActive) return;
+
+        const configAtual = this.waveConfigs[this.currentWaveIndex];
+        if (!configAtual) return;
+
+        if (configAtual.tipo === "wave" || !configAtual.tipo) {
+            const vivos = this.enemies.filter(
+                (enemy) => !enemy.data.isDead && !enemy.data.isRemoving
+            ).length;
+
+            if (vivos === 0) {
+                this.finalizarWave();
+            }
+        }
+
+        if (configAtual.tipo === "boss") {
+            if (this.bossFightStarted && this.boss && this.boss.data.isDead) {
+                this.concluirVitoria();
+            }
+        }
+    }
+
+    concluirVitoria() {
         if (this.isGameEnding) return;
 
         this.isGameEnding = true;
@@ -2168,12 +2029,12 @@ encerrarDialogoBoss() {
         }
 
         this.tocarSom(this.sfxVictory, true);
-        this.mostrarMensagemFinal("FASE 2 CONCLUÍDA!", "Indo para o caminho do Labirinto...");
+        this.mostrarMensagemFinal("FASE 3 CONCLUÍDA!", "Próximo passo: o Labirinto...");
 
         this.time.delayedCall(2600, () => {
-            this.scene.start("Phase3");
+            this.scene.start("Start");
         });
-}
+    }
 
     concluirDerrota() {
         if (this.isGameEnding) return;
@@ -2252,6 +2113,43 @@ encerrarDialogoBoss() {
         });
     }
 
+    atualizarBossHUD() {
+        this.bossHpBarBg.clear();
+        this.bossHpBarFill.clear();
+
+        if (!this.boss || this.boss.data.isDead || !this.bossFightStarted) {
+            this.bossHudBg.setVisible(false);
+            this.bossNameText.setVisible(false);
+            this.bossHpText.setVisible(false);
+            return;
+        }
+
+        this.bossHudBg.setVisible(true);
+        this.bossNameText.setVisible(true);
+        this.bossHpText.setVisible(true);
+
+        const x = 720;
+        const y = 50;
+        const largura = 260;
+        const altura = 22;
+
+        this.bossHpBarBg.fillStyle(0x222222, 1);
+        this.bossHpBarBg.fillRoundedRect(x, y, largura, altura, 8);
+        this.bossHpBarBg.lineStyle(2, 0xffffff, 1);
+        this.bossHpBarBg.strokeRoundedRect(x, y, largura, altura, 8);
+
+        this.bossHpBarFill.fillStyle(0xb30000, 1);
+        this.bossHpBarFill.fillRoundedRect(
+            x + 3,
+            y + 3,
+            (largura - 6) * (this.boss.data.currentHp / this.boss.data.maxHp),
+            altura - 6,
+            6
+        );
+
+        this.bossHpText.setText(`${this.boss.data.currentHp} / ${this.boss.data.maxHp}`);
+    }
+
     organizarProfundidade() {
         if (this.player) {
             this.player.setDepth(this.player.y);
@@ -2262,6 +2160,10 @@ encerrarDialogoBoss() {
                 enemy.sprite.setDepth(enemy.sprite.y);
             }
         });
+
+        if (this.boss && this.boss.sprite && this.boss.sprite.active) {
+            this.boss.sprite.setDepth(this.boss.sprite.y);
+        }
 
         this.boxes.forEach((box) => {
             if (box.sprite && box.sprite.active) {
@@ -2301,8 +2203,8 @@ encerrarDialogoBoss() {
             this.sfxHurt,
             this.sfxDeath,
             this.sfxEnemyDamage,
-            this.sfxVictory,
-            this.sfxDialog
+            this.sfxBossDeath,
+            this.sfxVictory
         ];
 
         audios.forEach((audio) => {
@@ -2327,9 +2229,9 @@ encerrarDialogoBoss() {
             item.sprite?.destroy();
         });
 
-        if (this.beachDecor) {
-            this.beachDecor.forEach((prop) => prop?.destroy());
-            this.beachDecor = [];
+        if (this.boss) {
+            this.boss.sprite?.destroy();
+            this.boss = null;
         }
 
         this.phaseMusic = null;
@@ -2338,7 +2240,7 @@ encerrarDialogoBoss() {
         this.sfxHurt = null;
         this.sfxDeath = null;
         this.sfxEnemyDamage = null;
+        this.sfxBossDeath = null;
         this.sfxVictory = null;
-        this.sfxDialog = null;
     }
 }

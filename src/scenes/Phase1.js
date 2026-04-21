@@ -1270,30 +1270,43 @@ export class Phase1 extends Phaser.Scene {
     }
 
     voadora() {
-        this.inAction = true;
-        this.isPunching = false;
-        this.comboStep = 0;
-        this.punchBuffer = 0;
+    const custoVida = 2;
 
-        this.player.setVelocity(0, 0);
-        this.player.anims.stop();
-        this.player.setTexture("leona_kick");
-        this.ajustarEscalaSprite(this.player, this.alturaPlayer);
-
-        this.tocarSom(this.sfxKick, true);
-
-        this.time.delayedCall(50, () => {
-            this.tentarAcertarAlvos(20, 120, 60);
-        });
-
-        this.time.delayedCall(240, () => {
-            if (!this.isDead) {
-                this.inAction = false;
-                this.player.play("leona_idle", true);
-                this.ajustarEscalaSprite(this.player, this.alturaPlayer);
-            }
-        });
+    if (this.currentHp <= custoVida) {
+        return;
     }
+
+    this.currentHp -= custoVida;
+    if (this.currentHp < 1) {
+        this.currentHp = 1;
+    }
+
+    this.atualizarHUD();
+
+    this.inAction = true;
+    this.isPunching = false;
+    this.comboStep = 0;
+    this.punchBuffer = 0;
+
+    this.player.setVelocity(0, 0);
+    this.player.anims.stop();
+    this.player.setTexture("leona_kick");
+    this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+
+    this.tocarSom(this.sfxKick, true);
+
+    this.time.delayedCall(50, () => {
+        this.tentarAcertarAlvos(20, 120, 60);
+    });
+
+    this.time.delayedCall(240, () => {
+        if (!this.isDead) {
+            this.inAction = false;
+            this.player.play("leona_idle", true);
+            this.ajustarEscalaSprite(this.player, this.alturaPlayer);
+        }
+    });
+}
 
     tentarAcertarAlvos(dano, alcanceX, alcanceY) {
         this.tentarAcertarInimigos(dano, alcanceX, alcanceY);
