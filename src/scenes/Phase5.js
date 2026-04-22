@@ -1,15 +1,14 @@
-export class Phase4 extends Phaser.Scene {
+export class Phase5 extends Phaser.Scene {
     constructor() {
-        super("Phase4");
+        super("Phase5");
     }
 
     preload() {
-        // Cenário phase 4
-        this.load.image("phase4_bg1", "assets/phase4/layer1.png");
-        this.load.image("phase4_bg2", "assets/phase4/layer2.png");
-        this.load.image("phase4_bg3", "assets/phase4/layer3.png");
-        this.load.image("phase4_bg4", "assets/phase4/layer4.png");
-        this.load.image("phase4_ground", "assets/phase4/layer5.png");
+        // Cenário phase 5
+        this.load.image("phase5_bg1", "assets/phase5/layer1.png");
+        this.load.image("phase5_bg2", "assets/phase5/layer2.png");
+        this.load.image("phase5_bg3", "assets/phase5/layer3.jpg");
+        this.load.image("phase5_ground", "assets/phase5/layer4.png");
 
         // HUD / portraits
         this.load.image("heroPortrait", "assets/player/portrait.png");
@@ -61,34 +60,30 @@ export class Phase4 extends Phaser.Scene {
     }
 
     create() {
-        const bg1 = this.textures.get("phase4_bg1").getSourceImage();
-        const bg2 = this.textures.get("phase4_bg2").getSourceImage();
-        const bg3 = this.textures.get("phase4_bg3").getSourceImage();
-        const bg4 = this.textures.get("phase4_bg4").getSourceImage();
-        const groundSource = this.textures.get("phase4_ground").getSourceImage();
+        const bg1 = this.textures.get("phase5_bg1").getSourceImage();
+        const bg2 = this.textures.get("phase5_bg2").getSourceImage();
+        const bg3 = this.textures.get("phase5_bg3").getSourceImage();
+        const groundSource = this.textures.get("phase5_ground").getSourceImage();
 
         this.bg1Width = bg1.width;
         this.bg2Width = bg2.width;
         this.bg3Width = bg3.width;
-        this.bg4Width = bg4.width;
-        this.groundScale = 0.34;
+        this.groundTileWidth = groundSource.width;
+        this.groundTileHeight = groundSource.height;
 
-        this.groundTileWidth = groundSource.width * this.groundScale;
-        this.groundTileHeight = groundSource.height * this.groundScale;
-
-        this.worldWidth = this.bg1Width + this.bg2Width + this.bg3Width + this.bg4Width;
+        this.worldWidth = this.bg1Width + this.bg2Width + this.bg3Width;
         this.worldHeight = 720;
 
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
         this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
-        // sobe o chão para encostar no fundo
-        this.groundY = this.worldHeight - this.groundTileHeight + 35;
+        // como o layer4 é só uma faixa fina, ele entra como rodapé visual
+        this.groundY = this.worldHeight - this.groundTileHeight;
 
-        // faixa jogável em cima do chão
-        this.walkTop = this.groundY + 6;
-        this.walkBottom = this.groundY + 64;
-        this.walkMid = this.groundY + 38;
+        // faixa jogável fixa, baseada no cenário
+        this.walkTop = 560;
+        this.walkBottom = 650;
+        this.walkMid = 606;
 
         this.alturaPlayer = 212;
         this.alturaEnemy = 196;
@@ -116,47 +111,46 @@ export class Phase4 extends Phaser.Scene {
         this.phaseStarted = false;
 
         this.waveConfigs = [
-            {
-                titulo: "BATALHA 1",
-                triggerX: 420,
-                blockX: 640,
-                enemies: [
-                    { x: 760, y: this.walkMid - 8, tipo: "light" },
-                    { x: 890, y: this.walkMid + 14, tipo: "light" }
-                ],
-                boxes: [
-                    { x: 640, y: this.walkBottom + 6 }
-                ]
-            },
-            {
-                titulo: "BATALHA 2",
-                triggerX: this.bg1Width + 240,
-                blockX: this.bg1Width + 450,
-                enemies: [
-                    { x: this.bg1Width + 600, y: this.walkMid - 10, tipo: "light" },
-                    { x: this.bg1Width + 740, y: this.walkMid + 14, tipo: "heavy" }
-                ],
-                boxes: []
-            },
-            {
-                titulo: "BATALHA 3",
-                triggerX: this.bg1Width + this.bg2Width + 220,
-                blockX: this.bg1Width + this.bg2Width + 430,
-                enemies: [
-                    { x: this.bg1Width + this.bg2Width + 560, y: this.walkMid - 8, tipo: "light" },
-                    { x: this.bg1Width + this.bg2Width + 700, y: this.walkMid + 12, tipo: "light" },
-                    { x: this.bg1Width + this.bg2Width + 840, y: this.walkMid + 2, tipo: "heavy" }
-                ],
-                boxes: []
-            },
-            {
-                tipo: "boss",
-                titulo: "GUARDIÃO",
-                triggerX: this.worldWidth - 360,
-                blockX: this.worldWidth - 120,
-                boss: { x: this.worldWidth - 180, y: this.walkMid + 12 }
-            }
-        ];
+        {
+            titulo: "BATALHA 1",
+            triggerX: 360,
+            blockX: 580,
+            enemies: [
+                { x: 700, y: this.walkMid - 8, tipo: "light" },
+                { x: 830, y: this.walkMid + 14, tipo: "light" }
+            ],
+            boxes: [
+                { x: 580, y: this.walkBottom + 6 }
+            ]
+        },
+        {
+            titulo: "BATALHA 2",
+            triggerX: this.bg1Width + 180,
+            blockX: this.bg1Width + 380,
+            enemies: [
+                { x: this.bg1Width + 520, y: this.walkMid - 8, tipo: "light" },
+                { x: this.bg1Width + 650, y: this.walkMid + 14, tipo: "heavy" }
+            ],
+            boxes: []
+        },
+        {
+            titulo: "BATALHA 3",
+            triggerX: this.bg1Width + this.bg2Width + 140,
+            blockX: this.bg1Width + this.bg2Width + 320,
+            enemies: [
+                { x: this.bg1Width + this.bg2Width + 470, y: this.walkMid - 6, tipo: "light" },
+                { x: this.bg1Width + this.bg2Width + 590, y: this.walkMid + 12, tipo: "light" }
+            ],
+            boxes: []
+        },
+        {
+            tipo: "boss",
+            titulo: "SUPERVISOR",
+            triggerX: this.worldWidth - 320,
+            blockX: this.worldWidth - 110,
+            boss: { x: this.worldWidth - 170, y: this.walkMid + 10 }
+        }
+    ];
 
         this.criarTexturasProcedurais();
         this.criarCenario();
@@ -167,23 +161,23 @@ export class Phase4 extends Phaser.Scene {
         this.criarAudio();
 
         this.dialogosIniciais = [
-            {
-                nome: "Daniel",
-                texto: "Leona, o sinal está falhando. Você já entrou na área interna do labirinto."
-            },
-            {
-                nome: "Leona",
-                texto: "Eu vi. Esse lugar está cheio de portões e corredores."
-            },
-            {
-                nome: "Daniel",
-                texto: "Então cuidado. Eles podem estar te cercando aí dentro."
-            },
-            {
-                nome: "Leona",
-                texto: "Pode deixar. Eu vou abrir caminho até o centro."
-            }
-        ];
+        {
+            nome: "Daniel",
+            texto: "Leona, você entrou no complexo interno. Parece um saguão de acesso."
+        },
+        {
+            nome: "Leona",
+            texto: "Então é aqui que eles escondem a próxima rota."
+        },
+        {
+            nome: "Daniel",
+            texto: "Cuidado. Esse lugar é apertado, e devem estar esperando por você."
+        },
+        {
+            nome: "Leona",
+            texto: "Ótimo. Eu limpo esse corredor e sigo em frente."
+        }
+    ];
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
@@ -299,7 +293,7 @@ export class Phase4 extends Phaser.Scene {
             g.generateTexture("snackItem", 32, 56);
         }
 
-        if (!this.textures.exists("phase4BossPlaceholder")) {
+        if (!this.textures.exists("phase5BossPlaceholder")) {
             g.clear();
             g.fillStyle(0x140d1f, 1);
             g.fillRoundedRect(0, 0, 150, 180, 14);
@@ -320,10 +314,10 @@ export class Phase4 extends Phaser.Scene {
             g.fillStyle(0x333333, 1);
             g.fillRoundedRect(42, 142, 66, 22, 6);
 
-            g.generateTexture("phase4BossPlaceholder", 150, 180);
+            g.generateTexture("phase5BossPlaceholder", 150, 180);
         }
 
-        if (!this.textures.exists("phase4BossPortrait")) {
+        if (!this.textures.exists("phase5BossPortrait")) {
             g.clear();
             g.fillStyle(0x190f24, 1);
             g.fillCircle(40, 40, 40);
@@ -339,48 +333,47 @@ export class Phase4 extends Phaser.Scene {
             g.fillStyle(0xb33030, 1);
             g.fillRoundedRect(20, 50, 40, 12, 5);
 
-            g.generateTexture("phase4BossPortrait", 80, 80);
+            g.generateTexture("phase5BossPortrait", 80, 80);
         }
 
         g.destroy();
     }
 
     criarCenario() {
-        this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x060811)
+        this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x05070d)
             .setOrigin(0, 0)
             .setDepth(-100);
 
-        this.layerScene1 = this.add.image(0, 0, "phase4_bg1").setOrigin(0, 0).setDepth(-60);
-        this.layerScene2 = this.add.image(this.bg1Width, 0, "phase4_bg2").setOrigin(0, 0).setDepth(-60);
-        this.layerScene3 = this.add.image(this.bg1Width + this.bg2Width, 0, "phase4_bg3").setOrigin(0, 0).setDepth(-60);
-        this.layerScene4 = this.add.image(this.bg1Width + this.bg2Width + this.bg3Width, 0, "phase4_bg4").setOrigin(0, 0).setDepth(-60);
+        this.layerScene1 = this.add.image(0, 0, "phase5_bg1")
+            .setOrigin(0, 0)
+            .setDepth(-60);
+
+        this.layerScene2 = this.add.image(this.bg1Width, 0, "phase5_bg2")
+            .setOrigin(0, 0)
+            .setDepth(-60);
+
+        this.layerScene3 = this.add.image(this.bg1Width + this.bg2Width, 0, "phase5_bg3")
+            .setOrigin(0, 0)
+            .setDepth(-60);
 
         this.groundTiles = [];
         const totalGroundTiles = Math.ceil(this.worldWidth / this.groundTileWidth) + 1;
 
         for (let i = 0; i < totalGroundTiles; i++) {
-            const tile = this.add.image(i * this.groundTileWidth, this.groundY - 18, "phase4_ground")
-            .setOrigin(0, 0)
-            .setScale(this.groundScale)
-            .setDepth(-40);
+            const tile = this.add.image(i * this.groundTileWidth, this.groundY, "phase5_ground")
+                .setOrigin(0, 0)
+                .setDepth(-40);
 
             this.groundTiles.push(tile);
         }
-
-        this.add.rectangle(0, this.groundY - 6, this.worldWidth, 12, 0x101527, 0.28)
-            .setOrigin(0, 0)
-            .setDepth(-39);
-
-            
     }
 
     atualizarParallax() {
-        const scrollX = this.cameras.main.scrollX * 0.08;
+        const scrollX = this.cameras.main.scrollX * 0.06;
 
         if (this.layerScene1) this.layerScene1.x = 0 + scrollX;
         if (this.layerScene2) this.layerScene2.x = this.bg1Width + scrollX;
         if (this.layerScene3) this.layerScene3.x = this.bg1Width + this.bg2Width + scrollX;
-        if (this.layerScene4) this.layerScene4.x = this.bg1Width + this.bg2Width + this.bg3Width + scrollX;
 
         if (this.groundTiles) {
             this.groundTiles.forEach((tile, index) => {
@@ -558,7 +551,7 @@ export class Phase4 extends Phaser.Scene {
         this.dialogTexto.setVisible(false);
         this.dialogHint.setVisible(false);
 
-        this.mostrarAvisoFase("FASE 4 - LABIRINTO");
+        this.mostrarAvisoFase("FASE 5 - COMPLEXO INTERNO");
     }
 
     mostrarMensagemFinal(titulo, subtitulo) {
@@ -660,7 +653,7 @@ export class Phase4 extends Phaser.Scene {
             .setDepth(9999)
             .setVisible(false);
 
-        this.bossNameText = this.add.text(720, 25, "GUARDIÃO", {
+        this.bossNameText = this.add.text(720, 25, "SUPERVISOR",  {
             fontSize: "24px",
             color: "#ffffff",
             fontStyle: "bold"
@@ -797,20 +790,20 @@ export class Phase4 extends Phaser.Scene {
 
         this.bossDialogos = [
             {
-                nome: "Guardião",
-                texto: "Você chegou longe demais para alguém que não pertence ao labirinto."
+                nome: "Supervisor",
+                texto: "Você entrou na área errada, garota."
             },
             {
                 nome: "Leona",
-                texto: "Então você é quem guarda o centro desse lugar."
+                texto: "Então esse é o lugar que vocês usavam para se esconder."
             },
             {
-                nome: "Guardião",
-                texto: "Ninguém atravessa meus portões e sai inteiro."
+                nome: "Supervisor",
+                texto: "Daqui você não passa. Esse andar continua fechado."
             },
             {
                 nome: "Leona",
-                texto: "Então abre caminho... ou cai comigo."
+                texto: "Então eu vou abrir esse caminho na marra."
             }
         ];
 
@@ -1969,10 +1962,10 @@ export class Phase4 extends Phaser.Scene {
         }
 
         this.tocarSom(this.sfxVictory, true);
-        this.mostrarMensagemFinal("FASE 4 CONCLUÍDA!", "Fim da demo do labirinto...");
+        this.mostrarMensagemFinal("FASE 5 CONCLUÍDA!", "Fim da demo do complexo...");
 
         this.time.delayedCall(2600, () => {
-            this.scene.start("Phase5");
+            this.scene.start("Start");
         });
     }
 
