@@ -7,6 +7,7 @@ import { Phase2 } from "./scenes/Phase2.js";
 import { Phase3 } from "./scenes/Phase3.js";
 import { Phase4 } from "./scenes/Phase4.js";
 import { Phase5 } from "./scenes/Phase5.js";
+import { Phase6} from "./scenes/Phase6.js";
 import { Credits } from "./scenes/Credits.js";
 
 const config = {
@@ -24,7 +25,10 @@ const config = {
             debug: false
         }
     },
-    scene: [Splash, Start, Lore, Cene1, Phase1, Phase2, Phase3, Phase4, Phase5, Credits]
+     dom: {
+        createContainer: true
+    },
+    scene: [Splash, Start, Lore, Cene1, Phase1, Phase2, Phase3, Phase4, Phase5, Phase6, Credits]
 };
 
 new Phaser.Game(config);

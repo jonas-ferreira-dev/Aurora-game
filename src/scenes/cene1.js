@@ -146,7 +146,7 @@ export class Cene1 extends Phaser.Scene {
                     this.dialogMusic.stop();
                 }
 
-                this.scene.start("Phase5");
+                this.scene.start("Phase6");
                 return;
             }
 
