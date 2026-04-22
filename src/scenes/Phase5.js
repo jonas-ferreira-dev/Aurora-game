@@ -1965,7 +1965,7 @@ export class Phase5 extends Phaser.Scene {
         this.mostrarMensagemFinal("FASE 5 CONCLUÍDA!", "Fim da demo do complexo...");
 
         this.time.delayedCall(2600, () => {
-            this.scene.start("Start");
+            this.scene.start("Phase6");
         });
     }
 

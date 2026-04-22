@@ -1,14 +1,14 @@
-export class Phase6 extends Phaser.Scene {
+export class Phase7 extends Phaser.Scene {
     constructor() {
-        super("Phase6");
+        super("Phase7");
     }
 
     preload() {
-
-        // Cenário phase 6
-        this.load.image("phase6_bg1", "assets/phase6/layer1.png");
-        this.load.image("phase6_bg2", "assets/phase6/layer2.png");
-        this.load.image("phase6_ground", "assets/phase6/layer4.png");
+        // Cenário phase 7
+        this.load.image("phase7_bg1", "assets/phase7/layer1.png");
+        this.load.image("phase7_bg2", "assets/phase7/layer2.png");
+        this.load.image("phase7_bg3", "assets/phase7/layer3.png");
+        this.load.image("phase7_bg4", "assets/phase7/layer4.png");
 
         // HUD / portraits
         this.load.image("heroPortrait", "assets/player/portrait.png");
@@ -60,35 +60,30 @@ export class Phase6 extends Phaser.Scene {
     }
 
     create() {
-
-        const bg1 = this.textures.get("phase6_bg1").getSourceImage();
-        const bg2 = this.textures.get("phase6_bg2").getSourceImage();
-        const groundSource = this.textures.get("phase6_ground").getSourceImage();
+        const bg1 = this.textures.get("phase7_bg1").getSourceImage();
+        const bg2 = this.textures.get("phase7_bg2").getSourceImage();
+        const bg3 = this.textures.get("phase7_bg3").getSourceImage();
+        const bg4 = this.textures.get("phase7_bg4").getSourceImage();
 
         this.bg1Width = bg1.width;
         this.bg2Width = bg2.width;
+        this.bg3Width = bg3.width;
+        this.bg4Width = bg4.width;
 
-        this.groundScale = 1;
-        this.groundTileWidth = groundSource.width * this.groundScale;
-        this.groundTileHeight = groundSource.height * this.groundScale;
-
-        this.worldWidth = this.bg1Width + this.bg2Width;
+        this.worldWidth = this.bg1Width + this.bg2Width + this.bg3Width + this.bg4Width;
         this.worldHeight = 720;
 
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
         this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
-        // faixa jogável só no tablado da ponte, sem pegar os corrimões
-        this.bridgeBottomY = this.worldHeight - 2;
-
-        // faixa jogável no piso da ponte
-        this.walkTop = this.bridgeBottomY - 118;
-        this.walkBottom = this.bridgeBottomY - 68;
-        this.walkMid = Math.floor((this.walkTop + this.walkBottom) / 2);
+        // faixa jogável fixa
+        this.walkTop = 520;
+        this.walkBottom = 640;
+        this.walkMid = 585;
 
         this.alturaPlayer = 212;
         this.alturaEnemy = 196;
-        this.alturaBoss = 235;
+        this.alturaBoss = 240;
 
         this.boss = null;
         this.bossFightStarted = false;
@@ -111,47 +106,63 @@ export class Phase6 extends Phaser.Scene {
         this.introDialogIndex = 0;
         this.phaseStarted = false;
 
+        this.levelComplete = false;
+        this.isGameEnding = false;
+        this.isDead = false;
+        this.inAction = false;
+        this.isPunching = false;
+        this.playerDeathPlayed = false;
+        this.lastDamageSourceX = null;
+
+        this.comboStep = 0;
+        this.punchBuffer = 0;
+        this.maxCombo = 3;
+
+        this.maxHp = 100;
+        this.currentHp = 100;
+
         this.waveConfigs = [
-        {
-            titulo: "BATALHA 1",
-            triggerX: 360,
-            blockX: 580,
-            enemies: [
-                { x: 700, y: this.walkMid - 8, tipo: "light" },
-                { x: 830, y: this.walkMid + 14, tipo: "light" }
-            ],
-            boxes: [
-                { x: 580, y: this.walkBottom + 6 }
-            ]
-        },
-        {
-            titulo: "BATALHA 2",
-            triggerX: this.bg1Width + 120,
-            blockX: this.bg1Width + 320,
-            enemies: [
-                { x: this.bg1Width + 470, y: this.walkMid - 8, tipo: "light" },
-                { x: this.bg1Width + 600, y: this.walkMid + 14, tipo: "heavy" }
-            ],
-            boxes: []
-        },
-        {
-            titulo: "BATALHA 3",
-            triggerX: this.bg1Width + 430,
-            blockX: this.bg1Width + 610,
-            enemies: [
-                { x: this.bg1Width + 760, y: this.walkMid - 6, tipo: "light" },
-                { x: this.bg1Width + 890, y: this.walkMid + 12, tipo: "light" }
-            ],
-            boxes: []
-        },
-        {
-            tipo: "boss",
-            titulo: "GUARDIÃO DA QUEDA",
-            triggerX: this.worldWidth - 320,
-            blockX: this.worldWidth - 110,
-            boss: { x: this.worldWidth - 170, y: this.walkMid + 10 }
-        }
-    ];
+            {
+                titulo: "BATALHA 1",
+                triggerX: 340,
+                blockX: 560,
+                enemies: [
+                    { x: 700, y: this.walkMid - 8, tipo: "light" },
+                    { x: 820, y: this.walkMid + 14, tipo: "light" }
+                ],
+                boxes: [
+                    { x: 560, y: this.walkBottom + 6 }
+                ]
+            },
+            {
+                titulo: "BATALHA 2",
+                triggerX: this.bg1Width + 160,
+                blockX: this.bg1Width + 360,
+                enemies: [
+                    { x: this.bg1Width + 520, y: this.walkMid - 8, tipo: "heavy" },
+                    { x: this.bg1Width + 660, y: this.walkMid + 14, tipo: "light" }
+                ],
+                boxes: []
+            },
+            {
+                titulo: "BATALHA 3",
+                triggerX: this.bg1Width + this.bg2Width + 140,
+                blockX: this.bg1Width + this.bg2Width + 360,
+                enemies: [
+                    { x: this.bg1Width + this.bg2Width + 500, y: this.walkMid - 10, tipo: "light" },
+                    { x: this.bg1Width + this.bg2Width + 630, y: this.walkMid + 8, tipo: "light" },
+                    { x: this.bg1Width + this.bg2Width + 760, y: this.walkMid + 16, tipo: "heavy" }
+                ],
+                boxes: []
+            },
+            {
+                tipo: "boss",
+                titulo: "CORAÇÃO DA BASE",
+                triggerX: this.worldWidth - 340,
+                blockX: this.worldWidth - 120,
+                boss: { x: this.worldWidth - 180, y: this.walkMid + 8 }
+            }
+        ];
 
         this.criarTexturasProcedurais();
         this.criarCenario();
@@ -162,23 +173,23 @@ export class Phase6 extends Phaser.Scene {
         this.criarAudio();
 
         this.dialogosIniciais = [
-        {
-            nome: "Daniel",
-            texto: "Leona, você chegou ao vale interno. Tem água correndo por todo lado."
-        },
-        {
-            nome: "Leona",
-            texto: "Eu vi. Parece bonito... mas está silencioso demais."
-        },
-        {
-            nome: "Daniel",
-            texto: "Então fica esperta. Esse corredor parece uma rota de acesso importante."
-        },
-        {
-            nome: "Leona",
-            texto: "Ótimo. Eu limpo a passagem e sigo até o fim."
-        }
-    ];
+            {
+                nome: "Daniel",
+                texto: "Leona, você chegou ao salão central. É o ponto final da base."
+            },
+            {
+                nome: "Leona",
+                texto: "Então acabou a corrida. Agora eu encerro isso aqui."
+            },
+            {
+                nome: "Daniel",
+                texto: "Cuidado. Se eles guardaram o melhor para o fim, vai ser agora."
+            },
+            {
+                nome: "Leona",
+                texto: "Ótimo. Então eu derrubo todo mundo e fecho essa história."
+            }
+        ];
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
@@ -207,9 +218,8 @@ export class Phase6 extends Phaser.Scene {
         }
 
         if (this.bossIntroActive) {
-            this.atualizarParallax();
-
             this.player.setVelocity(0, 0);
+
             if (this.player.anims.currentAnim?.key !== "leona_idle") {
                 this.player.play("leona_idle", true);
                 this.ajustarEscalaSprite(this.player, this.alturaPlayer);
@@ -239,10 +249,9 @@ export class Phase6 extends Phaser.Scene {
             return;
         }
 
-        this.atualizarParallax();
-
         if (this.introDialogActive) {
             this.player.setVelocity(0, 0);
+
             if (this.player.anims.currentAnim?.key !== "leona_idle") {
                 this.player.play("leona_idle", true);
                 this.ajustarEscalaSprite(this.player, this.alturaPlayer);
@@ -294,103 +303,65 @@ export class Phase6 extends Phaser.Scene {
             g.generateTexture("snackItem", 32, 56);
         }
 
-        if (!this.textures.exists("phase6BossPlaceholder")) {
+        if (!this.textures.exists("phase7BossPlaceholder")) {
             g.clear();
-            g.fillStyle(0x140d1f, 1);
-            g.fillRoundedRect(0, 0, 150, 180, 14);
-            g.lineStyle(6, 0xb33030, 1);
-            g.strokeRoundedRect(0, 0, 150, 180, 14);
+            g.fillStyle(0x1a1022, 1);
+            g.fillRoundedRect(0, 0, 160, 190, 14);
+            g.lineStyle(6, 0xd33a3a, 1);
+            g.strokeRoundedRect(0, 0, 160, 190, 14);
 
             g.fillStyle(0xffffff, 1);
-            g.fillCircle(48, 60, 12);
-            g.fillCircle(102, 60, 12);
+            g.fillCircle(52, 62, 12);
+            g.fillCircle(108, 62, 12);
 
             g.fillStyle(0xff4040, 1);
-            g.fillCircle(48, 60, 6);
-            g.fillCircle(102, 60, 6);
+            g.fillCircle(52, 62, 6);
+            g.fillCircle(108, 62, 6);
 
-            g.fillStyle(0xb33030, 1);
-            g.fillRoundedRect(38, 118, 74, 16, 6);
+            g.fillStyle(0xd33a3a, 1);
+            g.fillRoundedRect(42, 122, 76, 16, 6);
 
             g.fillStyle(0x333333, 1);
-            g.fillRoundedRect(42, 142, 66, 22, 6);
+            g.fillRoundedRect(46, 148, 68, 24, 6);
 
-            g.generateTexture("phase6BossPlaceholder", 150, 180);
+            g.generateTexture("phase7BossPlaceholder", 160, 190);
         }
 
-        if (!this.textures.exists("phase6BossPortrait")) {
+        if (!this.textures.exists("phase7BossPortrait")) {
             g.clear();
-            g.fillStyle(0x190f24, 1);
+            g.fillStyle(0x1a1022, 1);
             g.fillCircle(40, 40, 40);
 
             g.fillStyle(0xffffff, 1);
-            g.fillCircle(27, 31, 8);
-            g.fillCircle(53, 31, 8);
+            g.fillCircle(28, 30, 8);
+            g.fillCircle(52, 30, 8);
 
             g.fillStyle(0xff4040, 1);
-            g.fillCircle(27, 31, 4);
-            g.fillCircle(53, 31, 4);
+            g.fillCircle(28, 30, 4);
+            g.fillCircle(52, 30, 4);
 
-            g.fillStyle(0xb33030, 1);
+            g.fillStyle(0xd33a3a, 1);
             g.fillRoundedRect(20, 50, 40, 12, 5);
 
-            g.generateTexture("phase5BossPortrait", 80, 80);
+            g.generateTexture("phase7BossPortrait", 80, 80);
         }
 
         g.destroy();
     }
 
     criarCenario() {
-        this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x05070d)
+        this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x08050a)
             .setOrigin(0, 0)
             .setDepth(-100);
 
-        // fundo
-        this.layerScene1 = this.add.image(0, 0, "phase6_bg1")
+        this.bgPanel1 = this.add.image(0, 0, "phase7_bg1").setOrigin(0, 0).setDepth(-60);
+        this.bgPanel2 = this.add.image(this.bg1Width, 0, "phase7_bg2").setOrigin(0, 0).setDepth(-60);
+        this.bgPanel3 = this.add.image(this.bg1Width + this.bg2Width, 0, "phase7_bg3").setOrigin(0, 0).setDepth(-60);
+        this.bgPanel4 = this.add.image(this.bg1Width + this.bg2Width + this.bg3Width, 0, "phase7_bg4").setOrigin(0, 0).setDepth(-60);
+
+        this.add.rectangle(0, this.walkTop + 10, this.worldWidth, 8, 0x000000, 0.12)
             .setOrigin(0, 0)
-            .setDepth(-60);
-
-        this.layerScene2 = this.add.image(this.bg1Width, 0, "phase6_bg2")
-            .setOrigin(0, 0)
-            .setDepth(-60);
-
-        // GIF no cenário
-        this.waterfallGifBaseX = 700;
-        this.waterfallGifBaseY = 280;
-
-        this.waterfallGif = this.add.dom(this.waterfallGifBaseX, this.waterfallGifBaseY, "img");
-
-        this.waterfallGif.node.src = "assets/phase6/layer3.gif";
-        this.waterfallGif.node.style.width = "240px";
-        this.waterfallGif.node.style.height = "240px";
-        this.waterfallGif.node.style.pointerEvents = "none";
-        this.waterfallGif.node.style.opacity = "0.95";
-        this.waterfallGif.setDepth(-55);
-
-        // ponte / chão visual por cima do fundo
-       this.bridge = this.add.image(0, this.bridgeBottomY, "phase6_ground")
-        .setOrigin(0, 1)
-        .setDisplaySize(this.worldWidth + 64, this.groundTileHeight)
-        .setDepth(-40);
-
-            // sombra suave só pra unir ponte e fundo
-            this.add.rectangle(0, this.walkTop + 8, this.worldWidth, 6, 0x000000, 0.10)
-                .setOrigin(0, 0)
-                .setDepth(-39);
-        }
-
-    atualizarParallax() {
-        const scrollX = this.cameras.main.scrollX * 0.06;
-
-        if (this.layerScene1) this.layerScene1.x = 0 + scrollX;
-        if (this.layerScene2) this.layerScene2.x = this.bg1Width + scrollX;
-
-        
-
-        if (this.waterfallGif) {
-            this.waterfallGif.x = this.waterfallGifBaseX + scrollX;
-            this.waterfallGif.y = this.waterfallGifBaseY;
-        }
+            .setDepth(-39);
     }
 
     criarAudio() {
@@ -562,7 +533,7 @@ export class Phase6 extends Phaser.Scene {
         this.dialogTexto.setVisible(false);
         this.dialogHint.setVisible(false);
 
-        this.mostrarAvisoFase("FASE 6 - VALE DA CACHOEIRA");
+        this.mostrarAvisoFase("FASE 7 - CORAÇÃO DA BASE");
     }
 
     mostrarMensagemFinal(titulo, subtitulo) {
@@ -598,7 +569,6 @@ export class Phase6 extends Phaser.Scene {
         this.player.setCollideWorldBounds(true);
         this.player.setOrigin(0.5, 1);
 
-        // garante spawn dentro da faixa correta
         this.player.y = Phaser.Math.Clamp(this.player.y, this.walkTop, this.walkBottom);
 
         this.ajustarEscalaSprite(this.player, this.alturaPlayer);
@@ -607,17 +577,6 @@ export class Phase6 extends Phaser.Scene {
         this.player.on(Phaser.Animations.Events.ANIMATION_UPDATE, () => {
             this.ajustarEscalaSprite(this.player, this.alturaPlayer);
         });
-
-        this.isDead = false;
-        this.inAction = false;
-        this.isPunching = false;
-
-        this.comboStep = 0;
-        this.punchBuffer = 0;
-        this.maxCombo = 3;
-
-        this.maxHp = 100;
-        this.currentHp = 100;
     }
 
     criarHUD() {
@@ -667,7 +626,7 @@ export class Phase6 extends Phaser.Scene {
             .setDepth(9999)
             .setVisible(false);
 
-        this.bossNameText = this.add.text(720, 25, "GUARDIÃO DA QUEDA",  {
+        this.bossNameText = this.add.text(720, 25, "CORAÇÃO DA BASE", {
             fontSize: "24px",
             color: "#ffffff",
             fontStyle: "bold"
@@ -804,20 +763,20 @@ export class Phase6 extends Phaser.Scene {
 
         this.bossDialogos = [
             {
-                nome: "Guardião",
-                texto: "Você atravessou longe demais para continuar respirando."
+                nome: "Comandante",
+                texto: "Você destruiu tudo até aqui só para cair na última porta."
             },
             {
                 nome: "Leona",
-                texto: "Então você é o último obstáculo dessa rota."
+                texto: "Então você é o rosto por trás dessa base."
             },
             {
-                nome: "Guardião",
-                texto: "Essas águas escondem mais do que você imagina."
+                nome: "Comandante",
+                texto: "Eu sou o fim da linha. E ninguém passa por mim."
             },
             {
                 nome: "Leona",
-                texto: "Ótimo. Então eu derrubo você e descubro."
+                texto: "Ótimo. Porque eu já cheguei até o fim."
             }
         ];
 
@@ -825,7 +784,7 @@ export class Phase6 extends Phaser.Scene {
             this.spawnBoss(this.pendingBossConfig.boss.x, this.pendingBossConfig.boss.y, false);
         }
 
-        const dialogGap = 290;
+        const dialogGap = 300;
         const bossDialogX = Phaser.Math.Clamp(
             this.pendingBossConfig.boss.x,
             220,
@@ -853,12 +812,12 @@ export class Phase6 extends Phaser.Scene {
                 this.walkTop + 4,
                 this.walkBottom
             );
-            this.boss.sprite.setTexture("phase4BossPlaceholder");
+            this.boss.sprite.setTexture("phase7BossPlaceholder");
             this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
             this.boss.sprite.setFlipX(true);
         }
 
-        this.dialogPortraitRight.setTexture("phase4BossPortrait");
+        this.dialogPortraitRight.setTexture("phase7BossPortrait");
         this.ajustarPortrait(this.dialogPortraitRight, 80, 80);
 
         this.dialogBg.setVisible(true);
@@ -919,7 +878,7 @@ export class Phase6 extends Phaser.Scene {
         }
 
         if (this.boss?.sprite?.active) {
-            this.boss.sprite.setTexture("phase4BossPlaceholder");
+            this.boss.sprite.setTexture("phase7BossPlaceholder");
             this.ajustarEscalaSprite(this.boss.sprite, this.alturaBoss);
             this.boss.sprite.setFlipX(true);
             this.boss.sprite.x = Math.max(this.boss.sprite.x, this.player.x + 220);
@@ -929,11 +888,11 @@ export class Phase6 extends Phaser.Scene {
         this.bossNameText.setVisible(true);
         this.bossHpText.setVisible(true);
 
-        this.mostrarAvisoFase("BOSS FIGHT!");
+        this.mostrarAvisoFase("FINAL BOSS!");
     }
 
     spawnBoss(x, y, exibirHud = false) {
-        const sprite = this.physics.add.sprite(x, y, "phase4BossPlaceholder");
+        const sprite = this.physics.add.sprite(x, y, "phase7BossPlaceholder");
         sprite.setOrigin(0.5, 1);
         sprite.setCollideWorldBounds(true);
 
@@ -942,17 +901,18 @@ export class Phase6 extends Phaser.Scene {
         this.boss = {
             sprite,
             data: {
-                maxHp: 380,
-                currentHp: 380,
-                speed: 86,
-                damage: 22,
+                maxHp: 460,
+                currentHp: 460,
+                speed: 92,
+                damage: 24,
                 isDead: false,
                 isAttacking: false,
                 isHurt: false,
-                attackCooldown: 900,
+                attackCooldown: 820,
                 lastAttackTime: 0,
-                attackRangeX: 120,
-                attackRangeY: 60
+                attackRangeX: 126,
+                attackRangeY: 62,
+                phase2: false
             }
         };
 
@@ -996,12 +956,12 @@ export class Phase6 extends Phaser.Scene {
         };
 
         const heavyStats = {
-            maxHp: 78,
-            currentHp: 78,
-            speed: 78,
-            damage: 15,
-            attackCooldown: 880,
-            attackRangeX: 92,
+            maxHp: 84,
+            currentHp: 84,
+            speed: 80,
+            damage: 16,
+            attackCooldown: 860,
+            attackRangeX: 94,
             attackRangeY: 56
         };
 
@@ -1596,6 +1556,18 @@ export class Phase6 extends Phaser.Scene {
         const sprite = this.boss.sprite;
         const data = this.boss.data;
 
+        if (!data.phase2 && data.currentHp <= data.maxHp * 0.5) {
+            data.phase2 = true;
+            data.speed = 108;
+            data.damage = 30;
+            data.attackCooldown = 650;
+            this.mostrarAvisoFase("BOSS PHASE 2!");
+            sprite.setTint(0xff6666);
+            this.time.delayedCall(400, () => {
+                if (sprite?.active) sprite.clearTint();
+            });
+        }
+
         if (this.isDead) {
             sprite.body.setVelocity(0, 0);
             return;
@@ -1619,7 +1591,7 @@ export class Phase6 extends Phaser.Scene {
                 return;
             }
 
-            const vx = dx < 0 ? -24 : 24;
+            const vx = dx < 0 ? -28 : 28;
             const vy = dy < 0 ? -18 : 18;
             sprite.body.setVelocity(vx, vy);
 
@@ -1924,11 +1896,11 @@ export class Phase6 extends Phaser.Scene {
         this.aplicarArremessoNaMorte(
             sprite,
             origemX,
-            54,
-            26,
-            16,
-            140,
-            260,
+            58,
+            28,
+            18,
+            150,
+            280,
             () => {
                 if (!sprite.active) return;
                 sprite.setTint(0x552222);
@@ -1976,10 +1948,10 @@ export class Phase6 extends Phaser.Scene {
         }
 
         this.tocarSom(this.sfxVictory, true);
-        this.mostrarMensagemFinal("FASE 6 CONCLUÍDA!", "Fim da demo da cachoeira...");
+        this.mostrarMensagemFinal("FASE 7 CONCLUÍDA!", "Fim da jornada da Leona...");
 
         this.time.delayedCall(2600, () => {
-            this.scene.start("Phase7");
+            this.scene.start("Credits");
         });
     }
 
