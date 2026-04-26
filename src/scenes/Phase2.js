@@ -48,19 +48,36 @@ export class Phase2 extends Phaser.Scene {
         this.load.image("enemy_death2", "assets/Enemy 1/death2.png");
 
 
-        this.load.image("boss2_base", "assets/Boss 2/Base.png");
+        // Boss 2 / Kayla - sprites novos
+        // damage0 = dano normal
+        // damage1 até damage4 = derrota
         this.load.image("boss2_idle", "assets/Boss 2/idle.png");
-        this.load.image("boss2_attack", "assets/Boss 2/attack1.png");
-        this.load.image("boss2_damage", "assets/Boss 2/damage.png");
-        this.load.image("boss2_death1", "assets/Boss 2/death1.png");
-        this.load.image("boss2_death2", "assets/Boss 2/death2.png");
+
+        this.load.image("boss2_attack1", "assets/Boss 2/attack1.png");
+        this.load.image("boss2_attack2", "assets/Boss 2/attack2.png");
+        this.load.image("boss2_attack3", "assets/Boss 2/attack3.png");
+
+        this.load.image("boss2_damage", "assets/Boss 2/damage0.png");
+
+        this.load.image("boss2_death1", "assets/Boss 2/damage1.png");
+        this.load.image("boss2_death2", "assets/Boss 2/damage2.png");
+        this.load.image("boss2_death3", "assets/Boss 2/damage3.png");
+        this.load.image("boss2_death4", "assets/Boss 2/damage4.png");
+
         this.load.image("boss2_walk1", "assets/Boss 2/walk1.png");
         this.load.image("boss2_walk2", "assets/Boss 2/walk2.png");
         this.load.image("boss2_walk3", "assets/Boss 2/walk3.png");
         this.load.image("boss2_walk4", "assets/Boss 2/walk4.png");
         this.load.image("boss2_walk5", "assets/Boss 2/walk5.png");
-        this.load.image("potrait_kayla", "assets/Boss 2/potrait_kayla.png");
+        this.load.image("boss2_walk6", "assets/Boss 2/Walk6.png");
+        this.load.image("boss2_walk7", "assets/Boss 2/walk7.png");
+        this.load.image("boss2_walk8", "assets/Boss 2/walk8.png");
 
+        this.load.image("potrait_kayla", "assets/Boss 2/portrait.png");
+
+        this.load.image("decor_cadeira", "assets/phase2/cadeira praia.png");
+        this.load.image("decor_guardasol", "assets/phase2/guardasol.png");
+        this.load.image("decor_bola", "assets/phase2/bola.png");
         // Áudios
         this.load.audio("phaseMusic", "assets/audio/phase1.mp3");
         this.load.audio("sfxPunch", "assets/audio/punch.mp3");
@@ -397,6 +414,24 @@ export class Phase2 extends Phaser.Scene {
     criarDecoracaoPraia() {
         this.beachDecor = [];
 
+        const decoracoesPraia = [
+            {
+                key: "decor_cadeira",
+                altura: 92,
+                yOffset: 0
+            },
+            {
+                key: "decor_guardasol",
+                altura: 105,
+                yOffset: 0
+            },
+            {
+                key: "decor_bola",
+                altura: 78,
+                yOffset: 0
+            }
+        ];
+
         const props = [
             // areia
             { x: 760,  y: 520, scale: 0.95, angle: -6 },
@@ -418,13 +453,22 @@ export class Phase2 extends Phaser.Scene {
         ];
 
         props.forEach((propData) => {
-            const prop = this.add.image(propData.x, propData.y, "beachPropBox")
+            const decoracao = Phaser.Utils.Array.GetRandom(decoracoesPraia);
+
+            const prop = this.add.image(
+                propData.x,
+                propData.y + decoracao.yOffset,
+                decoracao.key
+            )
                 .setOrigin(0.5, 1)
-                .setScale(propData.scale)
                 .setAngle(propData.angle)
                 .setAlpha(0.92);
 
+            const escala = (decoracao.altura / prop.height) * propData.scale;
+            prop.setScale(escala);
+
             prop.setDepth(prop.y - 2);
+
             this.beachDecor.push(prop);
         });
     }
@@ -820,7 +864,7 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
             });
         }
 
-        if (!this.anims.exists("boss2_idle")) {
+       if (!this.anims.exists("boss2_idle")) {
             this.anims.create({
                 key: "boss2_idle",
                 frames: [{ key: "boss2_idle" }],
@@ -837,10 +881,26 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
                     { key: "boss2_walk2" },
                     { key: "boss2_walk3" },
                     { key: "boss2_walk4" },
-                    { key: "boss2_walk5" }
+                    { key: "boss2_walk5" },
+                    { key: "boss2_walk6" },
+                    { key: "boss2_walk7" },
+                    { key: "boss2_walk8" }
                 ],
-                frameRate: 8,
+                frameRate: 10,
                 repeat: -1
+            });
+        }
+
+        if (!this.anims.exists("boss2_attack")) {
+            this.anims.create({
+                key: "boss2_attack",
+                frames: [
+                    { key: "boss2_attack1" },
+                    { key: "boss2_attack2" },
+                    { key: "boss2_attack3" }
+                ],
+                frameRate: 10,
+                repeat: 0
             });
         }
 
@@ -849,9 +909,11 @@ this.dialogHint = this.add.text(1095, 185, "ENTER", {
                 key: "boss2_death",
                 frames: [
                     { key: "boss2_death1" },
-                    { key: "boss2_death2" }
+                    { key: "boss2_death2" },
+                    { key: "boss2_death3" },
+                    { key: "boss2_death4" }
                 ],
-                frameRate: 4,
+                frameRate: 5,
                 repeat: 0
             });
         }
@@ -1032,7 +1094,7 @@ encerrarDialogoBoss() {
                 data: {
                     maxHp: 320,
                     currentHp: 320,
-                    speed: 88,
+                    speed: 135,
                     damage: 24,
                     isDead: false,
                     isAttacking: false,
@@ -1123,17 +1185,17 @@ encerrarDialogoBoss() {
         this.enemies.push(enemy);
     }
 
-    spawnBox(x, y) {
-        const sprite = this.add.image(x, y, "crateBox").setOrigin(0.5, 1);
+        spawnBox(x, y) {
+            const sprite = this.add.image(x, y, "crateBox").setOrigin(0.5, 1);
 
-        const box = {
-            sprite,
-            hp: 20,
-            destroyed: false
-        };
+            const box = {
+                sprite,
+                hp: 20,
+                destroyed: false
+            };
 
-        this.boxes.push(box);
-    }
+            this.boxes.push(box);
+        }
 
     spawnHealthItem(x, groundY, mode = "rise") {
         const sprite = this.add.image(x, mode === "fall" ? -30 : groundY + 10, "snackItem")
@@ -1518,7 +1580,8 @@ encerrarDialogoBoss() {
 
         sprite.body.setVelocity(0, 0);
         sprite.anims.stop();
-        sprite.setTexture("boss2_attack");
+
+        sprite.play("boss2_attack", true);
         this.ajustarEscalaSprite(sprite, this.alturaBoss);
 
         this.tocarSom(this.sfxPunch, true);
@@ -1589,8 +1652,11 @@ encerrarDialogoBoss() {
 
         sprite.body.setVelocity(0, 0);
         sprite.anims.stop();
-        sprite.setTexture("boss2_damage");
+
+        // Primeiro frame da derrota
+        sprite.setTexture("boss2_death1");
         this.ajustarEscalaSprite(sprite, this.alturaBoss);
+
         this.tocarSom(this.sfxBossDeath, true);
 
         this.aplicarArremessoNaMorte(
@@ -1603,6 +1669,8 @@ encerrarDialogoBoss() {
             260,
             () => {
                 if (!sprite.active) return;
+
+                // Sequência damage1, damage2, damage3, damage4
                 sprite.play("boss2_death", true);
                 this.ajustarEscalaSprite(sprite, this.alturaBoss);
             }
@@ -2262,6 +2330,10 @@ encerrarDialogoBoss() {
                 enemy.sprite.setDepth(enemy.sprite.y);
             }
         });
+
+            if (this.boss && this.boss.sprite && this.boss.sprite.active) {
+                this.boss.sprite.setDepth(this.boss.sprite.y + 10);
+            }
 
         this.boxes.forEach((box) => {
             if (box.sprite && box.sprite.active) {
