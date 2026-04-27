@@ -564,22 +564,33 @@ export class PhaseTraining extends Phaser.Scene {
         }
 
         this.jumpTween = this.tweens.add({
-            targets: this.jumpOffset,
-            y: -95,
-            duration: 170,
-            ease: "Quad.Out",
-            yoyo: true,
-            hold: 70,
-            onUpdate: () => {
-                if (!this.player || !this.player.active) return;
+                targets: this.jumpOffset,
 
-                const baseY = this.jumpGroundY !== null ? this.jumpGroundY : this.player.y;
-                this.player.y = baseY + this.jumpOffset.y;
-            },
-            onComplete: () => {
-                this.finalizarPulo();
-            }
-        });
+                // Altura do pulo.
+                // Mais negativo = pula um pouco mais alto.
+                y: -105,
+
+                // Duração da subida e da descida.
+                // Como tem yoyo, o tempo total é quase o dobro disso + hold.
+                duration: 250,
+
+                ease: "Quad.Out",
+                yoyo: true,
+
+                // Tempo que ela fica um pouco mais "suspensa" no ar.
+                hold: 130,
+
+                onUpdate: () => {
+                    if (!this.player || !this.player.active) return;
+
+                    const baseY = this.jumpGroundY !== null ? this.jumpGroundY : this.player.y;
+                    this.player.y = baseY + this.jumpOffset.y;
+                },
+
+                onComplete: () => {
+                    this.finalizarPulo();
+                }
+            });
     }
 
 
