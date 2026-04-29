@@ -142,6 +142,12 @@ export class StageEnemy {
             return;
         }
 
+        if (data.isBeingThrown || data.isReturning) {
+            sprite.body?.setVelocity(0, 0);
+            this.updateHpBar();
+            return;
+        }
+
         if (!player || player.isDead) {
             sprite.body.setVelocity(0, 0);
             this.updateHpBar();
@@ -309,11 +315,13 @@ export class StageEnemy {
         sprite.setTexture("enemy_punch1");
         this.ajustarEscalaSprite();
 
-        this.scene.time.delayedCall(70, () => {
-            if (!data.isDead && !data.isRemoving && data.isAttacking) {
-                sprite.setTexture("enemy_punch2");
-                this.ajustarEscalaSprite();
-            }
+        this.scene.time.delayedCall(170, () => {
+            if (this.data.isDead || this.data.isRemoving) return;
+            if (this.data.isBeingThrown || this.data.isReturning) return;
+
+            this.data.isHurt = false;
+            this.sprite.play("enemy_idle", true);
+            this.ajustarEscalaSprite();
         });
 
         this.scene.time.delayedCall(125, () => {
@@ -386,19 +394,105 @@ export class StageEnemy {
     }
 
     arremessar(player) {
-        if (!player?.sprite) return;
-        if (this.data.isDead || this.data.isRemoving) return;
+            if (!player?.sprite) return;
+            if (!this.sprite || !this.sprite.active) return;
+            if (this.data.isDead || this.data.isRemoving) return;
+            if (this.data.isBeingThrown || this.data.isReturning) return;
 
-        const direcao = player.sprite.x < this.sprite.x ? 1 : -1;
+            const sprite = this.sprite;
+            const data = this.data;
 
-        this.scene.tweens.add({
-            targets: this.sprite,
-            x: Phaser.Math.Clamp(this.sprite.x + direcao * 70, 30, this.worldWidth - 30),
-            y: Phaser.Math.Clamp(this.sprite.y + 8, this.floorTop, this.floorBottom),
-            duration: 180,
-            ease: "Quad.Out"
-        });
-    }
+            data.isHurt = true;
+            data.isAttacking = false;
+            data.isBeingThrown = true;
+            data.isReturning = false;
+
+            sprite.body.setVelocity(0, 0);
+            sprite.anims.stop();
+            sprite.setTexture("enemy_damage");
+            this.ajustarEscalaSprite();
+
+            this.scene.tweens.killTweensOf(sprite);
+
+            const direcao = player.sprite.x < sprite.x ? 1 : -1;
+
+            const xInicial = sprite.x;
+            const yInicial = sprite.y;
+
+            const xPico = Phaser.Math.Clamp(
+                xInicial + direcao * 85,
+                40,
+                this.worldWidth - 40
+            );
+
+            const yPico = Phaser.Math.Clamp(
+                yInicial - 34,
+                this.floorTop,
+                this.floorBottom
+            );
+
+            const xFinal = Phaser.Math.Clamp(
+                xInicial + direcao * 155,
+                40,
+                this.worldWidth - 40
+            );
+
+            const yFinal = Phaser.Math.Clamp(
+                yInicial + 10,
+                this.floorTop,
+                this.floorBottom
+            );
+
+            this.scene.tweens.add({
+                targets: sprite,
+                x: xPico,
+                y: yPico,
+                duration: 150,
+                ease: "Quad.Out",
+                onComplete: () => {
+                    if (!sprite.active) return;
+                    if (data.isDead || data.isRemoving) return;
+
+                    // Usa animação de queda no chão
+                    sprite.play("enemy_death", true);
+                    this.ajustarEscalaSprite();
+
+                    this.scene.tweens.add({
+                        targets: sprite,
+                        x: xFinal,
+                        y: yFinal,
+                        duration: 260,
+                        ease: "Quad.In",
+                        onComplete: () => {
+                            if (!sprite.active) return;
+                            if (data.isDead || data.isRemoving) return;
+
+                            // Fica caído um instante antes de levantar
+                            this.scene.time.delayedCall(360, () => {
+                                this.levantarDepoisDoArremesso();
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        levantarDepoisDoArremesso() {
+            if (!this.sprite || !this.sprite.active) return;
+            if (this.data.isDead || this.data.isRemoving) return;
+
+            const sprite = this.sprite;
+            const data = this.data;
+
+            data.isBeingThrown = false;
+            data.isReturning = false;
+            data.isHurt = false;
+            data.isAttacking = false;
+
+            sprite.body.setVelocity(0, 0);
+            sprite.play("enemy_idle", true);
+            this.ajustarEscalaSprite();
+        }
 
     morrer(origemX = null) {
         if (this.data.isDead || this.data.isRemoving) return;

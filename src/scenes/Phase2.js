@@ -143,6 +143,9 @@ export class Phase2 extends Phaser.Scene {
         this.criarMensagens();
         this.criarAudio();
 
+        this.bossLoreOpen = false;
+        this.events.on("boss:lore", this.mostrarDossieBoss, this);
+
         this.dialogosIniciais = [
             {
                 nome: "Daniel",
@@ -182,6 +185,18 @@ export class Phase2 extends Phaser.Scene {
 
     update() {
         if (!this.leona || !this.player || !this.keys) return;
+
+        if (this.bossLoreOpen) {
+            if (
+                Phaser.Input.Keyboard.JustDown(this.keys.ENTER) ||
+                Phaser.Input.Keyboard.JustDown(this.keys.SPACE) ||
+                Phaser.Input.Keyboard.JustDown(this.keys.ESC)
+            ) {
+                this.fecharDossieBoss();
+            }
+
+            return;
+        }
 
         if (this.retryOpen) {
             if (
@@ -1125,7 +1140,8 @@ export class Phase2 extends Phaser.Scene {
 
         if (configAtual.tipo === "boss") {
             if (this.bossFightStarted && this.boss && this.boss.data.isDead) {
-                this.concluirVitoria();
+                // A vitória agora é chamada depois que o dossiê fecha.
+                return;
             }
         }
     }
@@ -1294,6 +1310,100 @@ export class Phase2 extends Phaser.Scene {
         });
     }
 
+
+mostrarDossieBoss(info) {
+    if (this.bossLoreOpen) return;
+
+    this.bossLoreOpen = true;
+
+    this.physics.pause();
+
+    this.leona?.sprite?.body?.setVelocity(0, 0);
+    this.boss?.sprite?.body?.setVelocity(0, 0);
+
+    this.enemies.forEach((enemy) => {
+        enemy?.sprite?.body?.setVelocity(0, 0);
+    });
+
+    this.dossieOverlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.68)
+        .setScrollFactor(0)
+        .setDepth(50000);
+
+    this.dossieBox = this.add.rectangle(640, 360, 820, 380, 0x151515, 0.96)
+        .setStrokeStyle(3, 0x7efcff)
+        .setScrollFactor(0)
+        .setDepth(50001);
+
+    this.dossieTitulo = this.add.text(640, 205, info.titulo || "Dossiê desbloqueado", {
+        fontSize: "30px",
+        color: "#7efcff",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 5
+    })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(50002);
+
+    this.dossieNome = this.add.text(640, 255, info.nome || "Boss derrotada", {
+        fontSize: "24px",
+        color: "#ffffff",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4
+    })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(50002);
+
+    this.dossieTexto = this.add.text(300, 305, info.texto || "", {
+        fontSize: "18px",
+        color: "#f2f2f2",
+        align: "left",
+        wordWrap: {
+            width: 680,
+            useAdvancedWrap: true
+        },
+        lineSpacing: 10
+    })
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(50002);
+
+    this.dossieHint = this.add.text(640, 505, "Pressione ENTER, SPACE ou ESC para continuar", {
+        fontSize: "18px",
+        color: "#ffd166",
+        stroke: "#000000",
+        strokeThickness: 4
+    })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(50002);
+}
+
+fecharDossieBoss() {
+    if (!this.bossLoreOpen) return;
+
+    this.bossLoreOpen = false;
+
+    this.dossieOverlay?.destroy();
+    this.dossieBox?.destroy();
+    this.dossieTitulo?.destroy();
+    this.dossieNome?.destroy();
+    this.dossieTexto?.destroy();
+    this.dossieHint?.destroy();
+
+    this.dossieOverlay = null;
+    this.dossieBox = null;
+    this.dossieTitulo = null;
+    this.dossieNome = null;
+    this.dossieTexto = null;
+    this.dossieHint = null;
+
+    this.physics.resume();
+
+    this.concluirVitoria();
+}
 
 mostrarRetry() {
     if (this.retryOpen || this.isGameEnding || this.levelComplete) return;
@@ -1472,6 +1582,17 @@ mostrarRetry() {
     }
 
     finalizarCena() {
+
+        this.events.off("boss:lore", this.mostrarDossieBoss, this);
+
+        this.dossieOverlay?.destroy();
+        this.dossieBox?.destroy();
+        this.dossieTitulo?.destroy();
+        this.dossieNome?.destroy();
+        this.dossieTexto?.destroy();
+        this.dossieHint?.destroy();
+
+        this.bossLoreOpen = false;
         
         if (this.retryOpen) {
             this.fecharRetry();

@@ -124,6 +124,16 @@ export class Boss2Training {
         this.startDelayEvent = scene.time.delayedCall(600, () => {
             this.iniciarCarregamento();
         });
+
+        this.loreInfo = config.loreInfo ?? {
+            nome: "Kayla, a Condutora de Raios",
+            titulo: "Dossiê desbloqueado",
+            texto:
+                "Kayla era uma das executoras da Aurora, treinada para transformar dor em energia. " +
+                "Sua técnica canalizava descargas elétricas pelo próprio corpo, criando tempestades curtas, " +
+                "mas violentas. Derrotá-la revelou que a Aurora estava usando guerreiros modificados " +
+                "como barreiras vivas para proteger algo maior."
+        };
     }
 
     update(player, aiEnabled = true) {
@@ -595,6 +605,8 @@ export class Boss2Training {
         this.sprite.anims.stop();
         this.sprite.setTexture("boss2_damage4");
         this.ajustarEscalaSprite();
+
+        this.scene.events.emit("boss:lore", this.loreInfo);
 
         this.scene.events.emit("boss2:derrotada", {
             nome: "Kayla, a Condutora de Raios",
