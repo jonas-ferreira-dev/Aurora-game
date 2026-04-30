@@ -64,12 +64,11 @@ export class Boss2Training {
         this.floorTop = config.floorTop ?? 470;
         this.floorBottom = config.floorBottom ?? 675;
 
-        // Altura normal da boss
-        this.alturaBoss = config.alturaBoss ?? 245;
+        this.alturaBoss = config.alturaBoss ?? 205;
+        this.larguraBoss = config.larguraBoss ?? 205;
 
-        // Altura menor para os sprites de derrota
-        // Ajuste esse valor se quiser ela ainda menor/maior na morte.
-        this.alturaBossDefeated = config.alturaBossDefeated ?? 185;
+        this.alturaBossDefeated = config.alturaBossDefeated ?? 145;
+        this.larguraBossDefeated = config.larguraBossDefeated ?? 135;
 
         this.sprite = scene.physics.add.sprite(x, y, "boss2_idle");
         this.sprite.setOrigin(0.5, 1);
@@ -833,14 +832,35 @@ export class Boss2Training {
     }
 
     ajustarEscalaSprite() {
-        if (!this.sprite || !this.sprite.frame) return;
+            if (!this.sprite || !this.sprite.frame) return;
 
-        const alturaOriginal = this.sprite.frame.height;
-        const alturaDesejada = this.getAlturaAtualSprite();
-        const escala = alturaDesejada / alturaOriginal;
+            const alturaOriginal = this.sprite.frame.height;
+            const larguraOriginal = this.sprite.frame.width;
 
-        this.sprite.setScale(escala);
-    }
+            const key = this.sprite.texture.key;
+
+            const texturasDerrota = [
+                "boss2_damage1",
+                "boss2_damage2",
+                "boss2_damage3",
+                "boss2_damage4"
+            ];
+
+            const usandoDerrota = texturasDerrota.includes(key);
+
+            const alturaDesejada = usandoDerrota
+                ? this.alturaBossDefeated
+                : this.alturaBoss;
+
+            const larguraDesejada = usandoDerrota
+                ? this.larguraBossDefeated
+                : this.larguraBoss;
+
+            const escalaX = larguraDesejada / larguraOriginal;
+            const escalaY = alturaDesejada / alturaOriginal;
+
+            this.sprite.setScale(escalaX, escalaY);
+        }
 
     ajustarAlturaImagem(img, alturaAlvo) {
         if (!img || !img.width || !img.height) return;

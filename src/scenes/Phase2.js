@@ -1,6 +1,7 @@
 import { LeonaPlayer } from "../entities/LeonaPlayer.js";
 import { StageEnemy } from "../entities/StageEnemy.js";
 import { Boss2Training } from "../entities/Boss2Training.js";
+import { BeachEnemy2 } from "../entities/BeachEnemy2.js";
 
 export class Phase2 extends Phaser.Scene {
     constructor() {
@@ -23,6 +24,7 @@ export class Phase2 extends Phaser.Scene {
         LeonaPlayer.preload(this);
         StageEnemy.preload(this);
         Boss2Training.preload(this);
+        BeachEnemy2.preload(this);
 
         // Decoração da praia
         this.load.image("decor_cadeira", "assets/phase2/cadeira praia.png");
@@ -59,7 +61,13 @@ export class Phase2 extends Phaser.Scene {
 
         this.alturaPlayer = 212;
         this.alturaEnemy = 196;
-        this.alturaBoss = 245;
+        this.alturaBoss = 205;
+
+        this.larguraBoss = 205;
+
+        // Boss derrotada (menor)
+        this.alturaBossDefeated = 145;
+        this.larguraBossDefeated = 135;
 
         this.leona = null;
         this.player = null;
@@ -91,8 +99,8 @@ export class Phase2 extends Phaser.Scene {
                 triggerX: 560,
                 blockX: 980,
                 enemies: [
-                    { x: 1030, y: 610, tipo: "light" },
-                    { x: 1170, y: 635, tipo: "light" }
+                    { x: 1030, y: 610, tipo: "beach2" },
+                    { x: 1170, y: 635, tipo: "beach2" }
                 ],
                 boxes: [
                     { x: 920, y: 635 }
@@ -103,9 +111,9 @@ export class Phase2 extends Phaser.Scene {
                 triggerX: 1500,
                 blockX: 1980,
                 enemies: [
-                    { x: 2050, y: 600, tipo: "light" },
-                    { x: 2190, y: 630, tipo: "heavy" },
-                    { x: 2340, y: 590, tipo: "light" }
+                    { x: 2050, y: 600, tipo: "beach2" },
+                    { x: 2190, y: 630, tipo: "beach2" },
+                    { x: 2340, y: 590, tipo: "beach2" }
                 ],
                 boxes: [
                     { x: 1910, y: 635 }
@@ -116,9 +124,9 @@ export class Phase2 extends Phaser.Scene {
                 triggerX: 2600,
                 blockX: 3120,
                 enemies: [
-                    { x: 3200, y: 600, tipo: "heavy" },
-                    { x: 3340, y: 635, tipo: "light" },
-                    { x: 3480, y: 590, tipo: "light" }
+                    { x: 3200, y: 600, tipo: "beach2" },
+                    { x: 3340, y: 635, tipo: "beach2" },
+                    { x: 3480, y: 590, tipo: "beach2" }
                 ],
                 boxes: [
                     { x: 3010, y: 635 }
@@ -187,11 +195,11 @@ export class Phase2 extends Phaser.Scene {
         if (!this.leona || !this.player || !this.keys) return;
 
         if (this.bossLoreOpen) {
-            if (
-                Phaser.Input.Keyboard.JustDown(this.keys.ENTER) ||
-                Phaser.Input.Keyboard.JustDown(this.keys.SPACE) ||
-                Phaser.Input.Keyboard.JustDown(this.keys.ESC)
-            ) {
+            const apertouEnter = this.keys.ENTER && Phaser.Input.Keyboard.JustDown(this.keys.ENTER);
+            const apertouSpace = this.keys.SPACE && Phaser.Input.Keyboard.JustDown(this.keys.SPACE);
+            const apertouEsc = this.keys.ESC && Phaser.Input.Keyboard.JustDown(this.keys.ESC);
+
+            if (apertouEnter || apertouSpace || apertouEsc) {
                 this.fecharDossieBoss();
             }
 
@@ -199,11 +207,11 @@ export class Phase2 extends Phaser.Scene {
         }
 
         if (this.retryOpen) {
-            if (
-                Phaser.Input.Keyboard.JustDown(this.keys.R) ||
-                Phaser.Input.Keyboard.JustDown(this.keys.ENTER) ||
-                Phaser.Input.Keyboard.JustDown(this.keys.SPACE)
-            ) {
+            const apertouR = this.keys.R && Phaser.Input.Keyboard.JustDown(this.keys.R);
+            const apertouEnter = this.keys.ENTER && Phaser.Input.Keyboard.JustDown(this.keys.ENTER);
+            const apertouSpace = this.keys.SPACE && Phaser.Input.Keyboard.JustDown(this.keys.SPACE);
+
+            if (apertouR || apertouEnter || apertouSpace) {
                 this.retryPlayer();
             }
 
@@ -265,8 +273,10 @@ export class Phase2 extends Phaser.Scene {
             enemy.update(this.leona, this.enemies);
         });
 
+        this.separarInimigosDaLeona();
+
         this.enemies = this.enemies.filter((enemy) => {
-            return enemy?.sprite?.active || enemy?.data?.isRemoving;
+            return enemy?.sprite?.active;
         });
 
         if (this.bossFightStarted && this.boss) {
@@ -280,6 +290,46 @@ export class Phase2 extends Phaser.Scene {
         this.organizarProfundidade();
         this.verificarFimDaFase();
     }
+
+    separarInimigosDaLeona() {
+    if (!this.leona?.sprite) return;
+
+    const leonaSprite = this.leona.sprite;
+    const leonaY = this.leona.getGroundY ? this.leona.getGroundY() : leonaSprite.y;
+
+    this.enemies.forEach((enemy) => {
+        if (!enemy?.sprite?.active) return;
+        if (!enemy.isAlive?.()) return;
+        if (enemy.data.isBeingThrown || enemy.data.isReturning) return;
+
+        const sprite = enemy.sprite;
+
+        const dx = sprite.x - leonaSprite.x;
+        const dy = sprite.y - leonaY;
+
+        const minX = 58;
+        const minY = 42;
+
+        const coladoX = Math.abs(dx) < minX;
+        const coladoY = Math.abs(dy) < minY;
+
+        if (!coladoX || !coladoY) return;
+
+        const dirX = dx >= 0 ? 1 : -1;
+        const afastamento = (minX - Math.abs(dx)) * 0.55;
+
+        sprite.x += dirX * afastamento;
+
+        // Também dá uma leve separada na "lane" para não ficarem todos na mesma linha.
+        if (Math.abs(dy) < 18) {
+            const dirY = dy >= 0 ? 1 : -1;
+            sprite.y += dirY * 6;
+        }
+
+        sprite.x = Phaser.Math.Clamp(sprite.x, 30, this.worldWidth - 30);
+        sprite.y = Phaser.Math.Clamp(sprite.y, this.boardwalkTop, this.boardwalkBottom);
+    });
+}
 
     criarTexturasProcedurais() {
         const g = this.add.graphics();
@@ -401,6 +451,7 @@ export class Phase2 extends Phaser.Scene {
         LeonaPlayer.createAnimations(this);
         StageEnemy.createAnimations(this);
         Boss2Training.createAnimations(this);
+        BeachEnemy2.createAnimations(this);
     }
 
     criarControles() {
@@ -411,11 +462,14 @@ export class Phase2 extends Phaser.Scene {
             A: Phaser.Input.Keyboard.KeyCodes.A,
             S: Phaser.Input.Keyboard.KeyCodes.S,
             D: Phaser.Input.Keyboard.KeyCodes.D,
+
             J: Phaser.Input.Keyboard.KeyCodes.J,
             K: Phaser.Input.Keyboard.KeyCodes.K,
-            R: Phaser.Input.Keyboard.KeyCodes.R,
+
             SPACE: Phaser.Input.Keyboard.KeyCodes.SPACE,
-            ENTER: Phaser.Input.Keyboard.KeyCodes.ENTER
+            ENTER: Phaser.Input.Keyboard.KeyCodes.ENTER,
+            ESC: Phaser.Input.Keyboard.KeyCodes.ESC,
+            R: Phaser.Input.Keyboard.KeyCodes.R
         });
 
         this.enterKey = this.keys.ENTER;
@@ -881,18 +935,32 @@ export class Phase2 extends Phaser.Scene {
     finalizarWave() {
         this.waveActive = false;
         this.currentLimitX = this.worldWidth - 40;
-        this.leona.setCurrentLimitX?.(this.currentLimitX);
+
+        if (this.leona?.setCurrentLimitX) {
+            this.leona.setCurrentLimitX(this.currentLimitX);
+        }
 
         this.mostrarAvisoFase("ÁREA LIMPA!");
     }
 
     spawnEnemy(x, y, tipo = "light") {
-        const enemy = new StageEnemy(this, x, y, tipo, {
-            worldWidth: this.worldWidth,
-            floorTop: this.boardwalkTop,
-            floorBottom: this.boardwalkBottom,
-            alturaEnemy: this.alturaEnemy
-        });
+        let enemy;
+
+        if (tipo === "beach2") {
+            enemy = new BeachEnemy2(this, x, y, tipo, {
+                worldWidth: this.worldWidth,
+                floorTop: this.boardwalkTop,
+                floorBottom: this.boardwalkBottom,
+                alturaEnemy: 188
+            });
+        } else {
+            enemy = new StageEnemy(this, x, y, tipo, {
+                worldWidth: this.worldWidth,
+                floorTop: this.boardwalkTop,
+                floorBottom: this.boardwalkBottom,
+                alturaEnemy: this.alturaEnemy
+            });
+        }
 
         this.enemies.push(enemy);
 
@@ -904,7 +972,15 @@ export class Phase2 extends Phaser.Scene {
             worldWidth: this.worldWidth,
             floorTop: this.boardwalkTop,
             floorBottom: this.boardwalkBottom,
+
+            // Boss normal
             alturaBoss: this.alturaBoss,
+            larguraBoss: this.larguraBoss,
+
+            // Boss derrotada
+            alturaBossDefeated: this.alturaBossDefeated,
+            larguraBossDefeated: this.larguraBossDefeated,
+
             autoStart: false
         });
 
@@ -916,6 +992,8 @@ export class Phase2 extends Phaser.Scene {
 
         return this.boss;
     }
+
+   
 
     pararCicloBossAteLuta() {
         if (!this.boss) return;

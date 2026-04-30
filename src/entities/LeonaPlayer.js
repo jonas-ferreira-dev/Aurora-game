@@ -1,6 +1,8 @@
 export class LeonaPlayer {
     static preload(scene) {
         scene.load.image("leona_idle", "assets/player/idle.png");
+        scene.load.image("leona_idle2", "assets/player/idle2.png");
+        scene.load.image("leona_idle3", "assets/player/idle3.png");
 
         scene.load.image("leona_walk1", "assets/player/walking1.png");
         scene.load.image("leona_walk2", "assets/player/walking2.png");
@@ -14,7 +16,9 @@ export class LeonaPlayer {
         scene.load.image("leona_punch4", "assets/player/punch4.png");
 
         scene.load.image("leona_kick", "assets/player/punch4.png");
+        scene.load.image("leona_jump0", "assets/player/jump0 .png");
         scene.load.image("leona_jump", "assets/player/jump.png");
+        scene.load.image("leona_jump2", "assets/player/jump2 .png");
         scene.load.image("leona_airKick", "assets/player/kick3.png");
 
         scene.load.image("leona_damage", "assets/player/damage.png");
@@ -23,11 +27,21 @@ export class LeonaPlayer {
     }
 
     static createAnimations(scene) {
+
         if (!scene.anims.exists("leona_idle")) {
             scene.anims.create({
                 key: "leona_idle",
-                frames: [{ key: "leona_idle" }],
-                frameRate: 1,
+                frames: [
+                    { key: "leona_idle" },
+                    { key: "leona_idle2" },
+                    { key: "leona_idle3" },
+                    { key: "leona_idle2" }
+                ],
+
+                // Bem mais lento.
+                // 1.2 = ciclo mais calmo, com cara de respiração/pose parada.
+                frameRate: 1.2,
+
                 repeat: -1
             });
         }
@@ -44,6 +58,22 @@ export class LeonaPlayer {
                 ],
                 frameRate: 8.4,
                 repeat: -1
+            });
+        }
+
+        if (!scene.anims.exists("leona_jump_anim")) {
+            scene.anims.create({
+                key: "leona_jump_anim",
+                frames: [
+                    { key: "leona_jump0" },
+                    { key: "leona_jump" },
+                    { key: "leona_jump2" }
+                ],
+
+                // Mais lento para acompanhar melhor o tempo do pulo.
+                frameRate: 4,
+
+                repeat: 0
             });
         }
 
@@ -106,6 +136,7 @@ export class LeonaPlayer {
         this.jumpTween = null;
         this.jumpOffset = { y: 0 };
         this.airMoveSpeed = 210;
+        this.jumpTakeoffEvent = null;
     }
 
     update(cursors, keys, targets) {
@@ -227,43 +258,80 @@ export class LeonaPlayer {
     }
 
     iniciarPulo() {
-        if (this.isDead || this.inAction || this.isJumping) return;
+            if (this.isDead || this.inAction || this.isJumping) return;
 
-        this.inAction = true;
-        this.isJumping = true;
-        this.isAirKicking = false;
+            this.inAction = true;
+            this.isJumping = true;
+            this.isAirKicking = false;
 
-        this.jumpGroundY = this.sprite.y;
-        this.jumpOffset = { y: 0 };
+            this.jumpGroundY = this.sprite.y;
+            this.jumpOffset = { y: 0 };
 
-        this.sprite.setVelocity(0, 0);
-        this.sprite.anims.stop();
-        this.sprite.setTexture("leona_jump");
-        this.ajustarEscalaSprite();
+            this.sprite.setVelocity(0, 0);
+            this.sprite.anims.stop();
 
-        if (this.jumpTween) {
-            this.jumpTween.stop();
-            this.jumpTween = null;
-        }
+            // jump0 só aparece no chão / começo do pulo
+            this.sprite.setTexture("leona_jump0");
+            this.ajustarEscalaSprite();
 
-        this.jumpTween = this.scene.tweens.add({
-            targets: this.jumpOffset,
-            y: -105,
-            duration: 250,
-            ease: "Quad.Out",
-            yoyo: true,
-            hold: 130,
-            onUpdate: () => {
-                if (!this.sprite || !this.sprite.active) return;
-
-                const baseY = this.jumpGroundY !== null ? this.jumpGroundY : this.sprite.y;
-                this.sprite.y = baseY + this.jumpOffset.y;
-            },
-            onComplete: () => {
-                this.finalizarPulo();
+            if (this.jumpTween) {
+                this.jumpTween.stop();
+                this.jumpTween = null;
             }
-        });
-    }
+
+            if (this.jumpTakeoffEvent) {
+                this.jumpTakeoffEvent.remove(false);
+                this.jumpTakeoffEvent = null;
+            }
+
+            // Depois de um instante, troca para o frame do ar.
+            // Assim o jump0 não fica aparecendo quando ela já está no alto.
+            this.jumpTakeoffEvent = this.scene.time.delayedCall(90, () => {
+                this.jumpTakeoffEvent = null;
+
+                if (!this.isJumping || this.isAirKicking || this.isDead) return;
+
+                this.sprite.anims.stop();
+                this.sprite.setTexture("leona_jump");
+                this.ajustarEscalaSprite();
+            });
+
+            this.jumpTween = this.scene.tweens.add({
+                targets: this.jumpOffset,
+
+                // Mais alto
+                y: -140,
+
+                // Mais lento
+                duration: 360,
+
+                ease: "Quad.Out",
+                yoyo: true,
+
+                // Suspensão no topo
+                hold: 190,
+
+                onUpdate: () => {
+                    if (!this.sprite || !this.sprite.active) return;
+
+                    const baseY = this.jumpGroundY !== null ? this.jumpGroundY : this.sprite.y;
+                    this.sprite.y = baseY + this.jumpOffset.y;
+                },
+
+                // Quando começa a descida, usa o jump2
+                onYoyo: () => {
+                    if (!this.isJumping || this.isAirKicking || this.isDead) return;
+
+                    this.sprite.anims.stop();
+                    this.sprite.setTexture("leona_jump2");
+                    this.ajustarEscalaSprite();
+                },
+
+                onComplete: () => {
+                    this.finalizarPulo();
+                }
+            });
+        }
 
     atualizarMovimentoAereo(cursors, keys) {
         if (!this.isJumping) return;
@@ -308,11 +376,21 @@ export class LeonaPlayer {
         if (vx < 0) this.sprite.setFlipX(true);
         if (vx > 0) this.sprite.setFlipX(false);
 
-        if (!this.isAirKicking && this.sprite.texture.key !== "leona_jump") {
-            this.sprite.setTexture("leona_jump");
-            this.ajustarEscalaSprite();
-        }
+        // O jump0 só deve acontecer no início do pulo.
+        if (!this.isAirKicking) {
+            const texturaAtual = this.sprite.texture.key;
 
+            const estaEmSpriteDePulo =
+                texturaAtual === "leona_jump0" ||
+                texturaAtual === "leona_jump" ||
+                texturaAtual === "leona_jump2";
+
+            if (!estaEmSpriteDePulo) {
+                this.sprite.anims.stop();
+                this.sprite.setTexture("leona_jump");
+                this.ajustarEscalaSprite();
+            }
+        }
         this.sprite.setVelocity(0, 0);
 
     }
@@ -320,9 +398,16 @@ export class LeonaPlayer {
     finalizarPulo() {
         if (this.isDead) return;
 
+       
+        if (this.jumpTakeoffEvent) {
+            this.jumpTakeoffEvent.remove(false);
+            this.jumpTakeoffEvent = null;
+        }
+       
         if (this.jumpGroundY !== null) {
             this.sprite.y = this.jumpGroundY;
         }
+
 
         this.jumpGroundY = null;
         this.jumpTween = null;
@@ -812,6 +897,11 @@ export class LeonaPlayer {
             this.jumpTween = null;
         }
 
+        if (this.jumpTakeoffEvent) {
+            this.jumpTakeoffEvent.remove(false);
+            this.jumpTakeoffEvent = null;
+        }
+
         this.isDead = false;
         this.inAction = false;
         this.isPunching = false;
@@ -875,6 +965,11 @@ export class LeonaPlayer {
         if (this.jumpTween) {
             this.jumpTween.stop();
             this.jumpTween = null;
+        }
+
+        if (this.jumpTakeoffEvent) {
+            this.jumpTakeoffEvent.remove(false);
+            this.jumpTakeoffEvent = null;
         }
 
         this.sprite?.destroy();

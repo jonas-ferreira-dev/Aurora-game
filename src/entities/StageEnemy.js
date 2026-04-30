@@ -113,6 +113,8 @@ export class StageEnemy {
             laneOffsetY: Phaser.Math.Between(-18, 18),
             attackOffsetX: Phaser.Math.Between(-34, 34),
             personalSpace: Phaser.Math.Between(64, 82),
+            playerPersonalSpaceY: 48,
+            retreatAfterAttackUntil: 0,
 
             // compatibilidade com LeonaPlayer
             isBeingThrown: false,
@@ -186,9 +188,23 @@ export class StageEnemy {
             distanciaPlayerY <= data.attackRangeY &&
             !player.isJumping;
 
-        const pertoDoPlayer =
+            const pertoDoPlayer =
             distanciaPlayerX <= data.attackRangeX + 42 &&
             distanciaPlayerY <= data.attackRangeY + 30;
+
+            const muitoColadoNaLeona =
+                distanciaPlayerX <= data.playerPersonalSpaceX &&
+                distanciaPlayerY <= data.playerPersonalSpaceY;
+
+            const precisaRecuarDepoisDoAtaque =
+                this.scene.time.now < data.retreatAfterAttackUntil;
+
+            // Se o inimigo ficou em cima da Leona, ele recua em vez de atacar/grudar.
+            // Isso evita a Leona ficar presa visualmente no meio dos inimigos.
+            if (muitoColadoNaLeona || precisaRecuarDepoisDoAtaque) {
+                this.recuarDoPlayer(player, separacao);
+                return;
+            }
 
         if (dentroDoAtaque) {
             if (this.scene.time.now > data.lastAttackTime + data.attackCooldown && Math.abs(dy) <= 20) {
@@ -300,11 +316,47 @@ export class StageEnemy {
         return { x: repulsaoX, y: repulsaoY };
     }
 
+    recuarDoPlayer(player, separacao = { x: 0, y: 0 }) {
+            if (!player || !player.sprite || !this.sprite?.active) return;
+
+            const sprite = this.sprite;
+            const data = this.data;
+
+            const playerY = player.getGroundY ? player.getGroundY() : player.sprite.y;
+
+            const dx = sprite.x - player.sprite.x;
+            const dy = sprite.y - playerY;
+
+            const dirX = dx >= 0 ? 1 : -1;
+            const dirY = dy >= 0 ? 1 : -1;
+
+            let vx = dirX * data.speed * 0.92 + separacao.x;
+            let vy = dirY * data.speed * 0.42 + separacao.y;
+
+            vx = Phaser.Math.Clamp(vx, -data.speed * 1.1, data.speed * 1.1);
+            vy = Phaser.Math.Clamp(vy, -data.speed * 0.75, data.speed * 0.75);
+
+            sprite.body.setVelocity(vx, vy);
+
+            if (vx < 0) sprite.setFlipX(true);
+            if (vx > 0) sprite.setFlipX(false);
+
+            if (sprite.anims.currentAnim?.key !== "enemy_walk") {
+                sprite.play("enemy_walk", true);
+                this.ajustarEscalaSprite();
+            }
+
+            sprite.y = Phaser.Math.Clamp(sprite.y, this.floorTop, this.floorBottom);
+
+            this.updateHpBar();
+        }
+
     atacar(player) {
         const sprite = this.sprite;
         const data = this.data;
 
         if (data.isDead || data.isRemoving || data.isAttacking || data.isHurt) return;
+        if (data.isBeingThrown || data.isReturning) return;
         if (!player || player.isDead) return;
 
         data.isAttacking = true;
@@ -312,6 +364,13 @@ export class StageEnemy {
 
         sprite.body.setVelocity(0, 0);
         sprite.anims.stop();
+
+        if (player.sprite.x < sprite.x) {
+            sprite.setFlipX(true);
+        } else {
+            sprite.setFlipX(false);
+        }
+
         sprite.setTexture("enemy_punch1");
         this.ajustarEscalaSprite();
 
@@ -325,14 +384,18 @@ export class StageEnemy {
         });
 
         this.scene.time.delayedCall(125, () => {
-            if (!data.isDead && !data.isRemoving && data.isAttacking) {
-                sprite.setTexture("enemy_punch3");
-                this.ajustarEscalaSprite();
-            }
+            if (!sprite.active) return;
+            if (data.isDead || data.isRemoving || data.isBeingThrown || data.isReturning) return;
+            if (!data.isAttacking) return;
+
+            sprite.setTexture("enemy_punch3");
+            this.ajustarEscalaSprite();
         });
 
-        this.scene.time.delayedCall(135, () => {
-            if (data.isDead || data.isRemoving || player.isDead) return;
+        this.scene.time.delayedCall(140, () => {
+            if (!sprite.active) return;
+            if (data.isDead || data.isRemoving || data.isBeingThrown || data.isReturning) return;
+            if (!player || player.isDead) return;
 
             const playerY = player.getGroundY ? player.getGroundY() : player.sprite.y;
 
@@ -344,12 +407,17 @@ export class StageEnemy {
             }
         });
 
-        this.scene.time.delayedCall(250, () => {
-            if (!data.isDead && !data.isRemoving) {
-                data.isAttacking = false;
-                sprite.play("enemy_idle", true);
-                this.ajustarEscalaSprite();
-            }
+        this.scene.time.delayedCall(260, () => {
+            if (!sprite.active) return;
+            if (data.isDead || data.isRemoving) return;
+
+            data.isAttacking = false;
+
+            // Depois do ataque, recua um pouco para não ficar grudado.
+            data.retreatAfterAttackUntil = this.scene.time.now + 260;
+
+            sprite.play("enemy_idle", true);
+            this.ajustarEscalaSprite();
         });
     }
 
