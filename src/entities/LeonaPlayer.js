@@ -123,6 +123,7 @@ export class LeonaPlayer {
         this.comboAcertouInimigo = false;
         this.comboHitsConectados = 0;
         this.currentPunchHit = false;
+        this.comboHitTargets = new Set();
 
         this.maxHp = 100;
         this.currentHp = 100;
@@ -435,6 +436,7 @@ export class LeonaPlayer {
         this.comboHitsConectados = 0;
         this.currentPunchHit = false;
         this.comboWaitingForInput = false;
+        this.comboHitTargets.clear();
 
         if (this.comboWaitEvent) {
             this.comboWaitEvent.remove(false);
@@ -460,27 +462,27 @@ export class LeonaPlayer {
 
         let dano = 12;
         let alcanceX = 118;
-        let alcanceY = 74;
+        let alcanceY = 52;
         let duracao = 190;
 
-        if (step === 2) {
+       if (step === 2) {
             dano = 14;
             alcanceX = 124;
-            alcanceY = 76;
+            alcanceY = 54;
             duracao = 200;
         }
 
         if (step === 3) {
             dano = 18;
             alcanceX = 134;
-            alcanceY = 78;
+            alcanceY = 56;
             duracao = 220;
         }
 
         if (step === 4) {
             dano = 26;
             alcanceX = 150;
-            alcanceY = 82;
+            alcanceY = 60;
             duracao = 260;
         }
 
@@ -561,19 +563,28 @@ export class LeonaPlayer {
             this.ajustarEscalaSprite();
         }
 
+       const alvosDoCombo = Array.from(this.comboHitTargets).filter((target) => {
+            if (!target || !target.sprite || !target.sprite.active) return false;
+            if (target.data?.isDead || target.data?.isRemoving) return false;
+            if (target.data?.isBeingThrown || target.data?.isReturning) return false;
+            return true;
+        });
+
         if (comboCompletoConectou) {
-            alvosValidos.forEach((target) => {
+            alvosDoCombo.forEach((target) => {
                 if (typeof target.arremessar === "function") {
                     target.arremessar(this);
                 }
             });
         } else {
-            alvosValidos.forEach((target) => {
+            alvosDoCombo.forEach((target) => {
                 if (typeof target.liberarHitstun === "function") {
                     target.liberarHitstun();
                 }
             });
         }
+
+        this.comboHitTargets.clear();
     }
 
     voadora(targets) {
@@ -995,10 +1006,38 @@ export class LeonaPlayer {
         }
 
         tentarAcertarAlvos(targets, dano, alcanceX, alcanceY, opcoes = {}) {
+            const alvosValidos = this.getAlvosValidos(targets);
+
+            const candidatos = alvosValidos.filter((target) => {
+                return this.alvoNaAreaDoGolpe(target, alcanceX, alcanceY);
+            });
+
+            if (candidatos.length === 0) {
+                return false;
+            }
+
+            const leonaY = this.getGroundY();
+
+            candidatos.sort((a, b) => {
+                const dyA = Math.abs(a.sprite.y - leonaY);
+                const dyB = Math.abs(b.sprite.y - leonaY);
+
+                if (dyA !== dyB) {
+                    return dyA - dyB;
+                }
+
+                const dxA = Math.abs(a.sprite.x - this.sprite.x);
+                const dxB = Math.abs(b.sprite.x - this.sprite.x);
+
+                return dxA - dxB;
+            });
+
+            const maxHits = opcoes.maxHits ?? 1;
+            const alvosEscolhidos = candidatos.slice(0, maxHits);
+
             let acertouAlgum = false;
 
-            this.getAlvosValidos(targets).forEach((target) => {
-                if (!this.alvoNaAreaDoGolpe(target, alcanceX, alcanceY)) return;
+            alvosEscolhidos.forEach((target) => {
                 if (typeof target.receberDano !== "function") return;
 
                 const aplicou = target.receberDano(dano, {
@@ -1008,6 +1047,7 @@ export class LeonaPlayer {
 
                 if (aplicou) {
                     acertouAlgum = true;
+                    this.comboHitTargets.add(target);
                 }
             });
 

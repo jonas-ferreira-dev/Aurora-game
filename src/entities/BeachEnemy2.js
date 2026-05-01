@@ -92,11 +92,11 @@ export class BeachEnemy2 {
             attackCooldown: 820,
             lastAttackTime: -9999,
 
-            attackRangeX: 92,
-            attackRangeY: 58,
+            attackRangeX: 108,
+            attackRangeY: 64,
 
-            kickRangeX: 118,
-            kickRangeY: 62,
+            kickRangeX: 128,
+            kickRangeY: 68,
 
             laneOffsetY: Phaser.Math.Between(-18, 18),
             attackOffsetX: Phaser.Math.Between(-30, 30),

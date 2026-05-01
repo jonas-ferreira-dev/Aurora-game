@@ -52,6 +52,9 @@ export class Phase2 extends Phaser.Scene {
         this.worldWidth = 4200;
         this.worldHeight = 720;
         this.retryOpen = false;
+        this.combatPausedForRespawn = false;
+        this.lastDeathX = null;
+        this.lastDeathY = null;
 
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
         this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
@@ -255,6 +258,20 @@ export class Phase2 extends Phaser.Scene {
             if (apertouR || apertouEnter || apertouSpace) {
                 this.retryPlayer();
             }
+
+            return;
+        }
+
+          if (this.combatPausedForRespawn) {
+            this.atualizarParallax();
+
+            this.leona?.sprite?.setVelocity(0, 0);
+            this.pararEntidadesEmIdle();
+
+            this.atualizarHUD();
+            this.atualizarBossHUD();
+            this.atualizarHUDInimigos();
+            this.organizarProfundidade();
 
             return;
         }
@@ -1526,10 +1543,74 @@ export class Phase2 extends Phaser.Scene {
 
         this.playerDeathHandled = true;
 
+        this.lastDeathX = this.leona?.sprite?.x ?? this.player?.x ?? this.cameras.main.scrollX + 220;
+        this.lastDeathY = this.leona?.getGroundY?.() ?? this.leona?.sprite?.y ?? this.boardwalkMid;
+
         this.time.delayedCall(450, () => {
             this.mostrarRetry();
         });
     }
+
+    prepararCombateParaRetry() {
+    const now = this.time.now;
+
+    // Para tweens da Leona morta.
+    if (this.leona?.sprite) {
+        this.tweens.killTweensOf(this.leona.sprite);
+        this.leona.sprite.setVelocity(0, 0);
+        this.leona.sprite.setAngle(0);
+    }
+
+    // Cancela raios, avisos e poderes ativos da boss.
+    if (this.boss) {
+        this.boss.limparRaiosAtivos?.();
+
+        if (this.boss.data) {
+            this.boss.data.isAttacking = false;
+            this.boss.data.isHurt = false;
+            this.boss.data.isBeingThrown = false;
+            this.boss.data.isReturning = false;
+        }
+
+        this.boss.raioPauseUntil = now + 1400;
+        this.boss.nextStrikeAt = now + 1600;
+
+        if (this.bossFightStarted && !this.boss.data?.isDead) {
+            this.boss.state = "post_cast";
+            this.boss.stateStartedAt = now;
+            this.boss.charge = 0;
+        }
+
+        if (this.boss.sprite?.active) {
+            this.boss.sprite.body?.setVelocity(0, 0);
+            this.boss.sprite.anims.stop();
+            this.boss.sprite.setTexture("boss2_idle");
+            this.boss.ajustarEscalaSprite?.();
+        }
+    }
+
+    // Para inimigos comuns no momento do respawn.
+    this.enemies.forEach((enemy) => {
+        if (!enemy?.sprite?.active) return;
+
+        enemy.sprite.body?.setVelocity(0, 0);
+
+        if (enemy.data) {
+            enemy.data.isAttacking = false;
+            enemy.data.isHurt = false;
+            enemy.data.retreatAfterAttackUntil = now + 700;
+
+            if (enemy.data.hurtReturnEvent) {
+                enemy.data.hurtReturnEvent.remove(false);
+                enemy.data.hurtReturnEvent = null;
+            }
+        }
+
+        if (!enemy.data?.isDead && !enemy.data?.isRemoving) {
+            enemy.playIdle?.();
+        }
+    });
+}
 
 
 mostrarDossieBoss(info) {
@@ -1719,20 +1800,76 @@ mostrarRetry() {
         this.physics.resume();
 
         this.playerDeathHandled = false;
+        this.combatPausedForRespawn = true;
+
+        this.prepararCombateParaRetry();
+
+        const cameraLeft = this.cameras.main.scrollX;
+        const cameraRight = cameraLeft + this.cameras.main.width;
 
         const reviveX = Phaser.Math.Clamp(
-            this.cameras.main.scrollX + 220,
-            40,
-            this.currentLimitX - 40
+            this.lastDeathX ?? this.leona?.sprite?.x ?? cameraLeft + 360,
+            cameraLeft + 120,
+            Math.min(cameraRight - 120, this.currentLimitX - 40)
         );
 
-        const reviveY = this.boardwalkMid;
+        const reviveY = Phaser.Math.Clamp(
+            this.lastDeathY ?? this.boardwalkMid,
+            this.boardwalkTop,
+            this.boardwalkBottom
+        );
 
+        // Reseta vida/estado, mas vamos reposicionar manualmente para cair de cima.
         this.leona.reset(reviveX, reviveY);
         this.player = this.leona.sprite;
 
-        this.leona.playerIframesUntil = this.time.now + 1400;
-        this.leona.playerAttackArmorUntil = this.time.now + 700;
+        // Invulnerabilidade durante e logo depois da entrada.
+        this.leona.playerIframesUntil = this.time.now + 2200;
+        this.leona.playerAttackArmorUntil = this.time.now + 1600;
+
+        this.leona.inAction = true;
+        this.leona.isPunching = false;
+        this.leona.isJumping = false;
+        this.leona.isAirKicking = false;
+        this.leona.isBeingShocked = false;
+
+        const startY = reviveY - 330;
+
+        this.leona.sprite.setPosition(reviveX, startY);
+        this.leona.sprite.setVelocity(0, 0);
+        this.leona.sprite.setAlpha(0);
+        this.leona.sprite.setAngle(0);
+        this.leona.sprite.anims.stop();
+        this.leona.sprite.setTexture("leona_jump");
+        this.leona.ajustarEscalaSprite?.();
+
+        this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+
+        this.tweens.add({
+            targets: this.leona.sprite,
+            alpha: 1,
+            y: reviveY,
+            duration: 620,
+            ease: "Quad.In",
+            onComplete: () => {
+                if (!this.leona?.sprite?.active) return;
+
+                this.leona.sprite.setVelocity(0, 0);
+                this.leona.sprite.setAngle(0);
+                this.leona.sprite.play("leona_idle", true);
+                this.leona.ajustarEscalaSprite?.();
+
+                this.time.delayedCall(220, () => {
+                    this.leona.inAction = false;
+                    this.combatPausedForRespawn = false;
+
+                    this.leona.playerIframesUntil = this.time.now + 1400;
+                    this.leona.playerAttackArmorUntil = this.time.now + 700;
+
+                    this.atualizarHUD();
+                });
+            }
+        });
 
         this.atualizarHUD();
     }
