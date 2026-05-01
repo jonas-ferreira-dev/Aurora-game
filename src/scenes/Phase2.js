@@ -8,12 +8,17 @@ export class Phase2 extends Phaser.Scene {
         super("Phase2");
     }
 
-    preload() {
+   preload() {
         // Cenário da fase 2
-        this.load.image("phase2_layer1", "assets/phase2/layer1.jpg");
-        this.load.image("phase2_layer2", "assets/phase2/layer2.jpg");
-        this.load.image("phase2_layer3", "assets/phase2/layer3.jpg");
-        this.load.image("phase2_layer4", "assets/phase2/layer4.jpg");
+        this.load.image("phase2_sky", "assets/phase2/phase2_sky.png");
+        this.load.image("phase2_farclouds", "assets/phase2/phase2_farclouds.png");
+        this.load.image("phase2_beach", "assets/phase2/phase2_beach.png");
+        this.load.image("phase2_ground", "assets/phase2/phase2_ground.png");
+
+        this.load.spritesheet("phase2_sea_anim", "assets/phase2/phase2_sea_anim.png", {
+            frameWidth: 1572,
+            frameHeight: 110
+        });
 
         // HUD / retratos
         this.load.image("heroPortrait", "assets/player/portrait.png");
@@ -55,9 +60,9 @@ export class Phase2 extends Phaser.Scene {
         this.isGameEnding = false;
         this.playerDeathHandled = false;
 
-        this.boardwalkTop = 620;
-        this.boardwalkBottom = 690;
-        this.boardwalkMid = 668;
+        this.boardwalkTop = 500;
+        this.boardwalkBottom = 670;
+        this.boardwalkMid = (this.boardwalkTop + this.boardwalkBottom) / 2;
 
         this.alturaPlayer = 212;
         this.alturaEnemy = 196;
@@ -94,57 +99,61 @@ export class Phase2 extends Phaser.Scene {
         this.phaseStarted = false;
 
         this.waveConfigs = [
-            {
-                titulo: "BATALHA 1",
-                triggerX: 560,
-                blockX: 980,
-                enemies: [
-                    { x: 1030, y: 610, tipo: "beach2" },
-                    { x: 1170, y: 635, tipo: "beach2" }
-                ],
-                boxes: [
-                    { x: 920, y: 635 }
-                ]
-            },
-            {
-                titulo: "BATALHA 2",
-                triggerX: 1500,
-                blockX: 1980,
-                enemies: [
-                    { x: 2050, y: 600, tipo: "beach2" },
-                    { x: 2190, y: 630, tipo: "beach2" },
-                    { x: 2340, y: 590, tipo: "beach2" }
-                ],
-                boxes: [
-                    { x: 1910, y: 635 }
-                ]
-            },
-            {
-                titulo: "BATALHA 3",
-                triggerX: 2600,
-                blockX: 3120,
-                enemies: [
-                    { x: 3200, y: 600, tipo: "beach2" },
-                    { x: 3340, y: 635, tipo: "beach2" },
-                    { x: 3480, y: 590, tipo: "beach2" }
-                ],
-                boxes: [
-                    { x: 3010, y: 635 }
-                ]
-            },
-            {
-                tipo: "boss",
-                titulo: "KAYLA",
-                triggerX: 3550,
-                blockX: 4040,
-                boss: { x: 4130, y: 680 }
-            }
-        ];
+        {
+            titulo: "BATALHA 1",
+            triggerX: 560,
+            blockX: 1260,
+            arenaMinX: 420,
+            enemies: [
+                { x: 1040, y: 610, tipo: "beach2" },
+                { x: 1160, y: 635, tipo: "beach2" }
+            ],
+            boxes: [
+                { x: 920, y: 635 }
+            ]
+        },
+        {
+            titulo: "BATALHA 2",
+            triggerX: 1500,
+            blockX: 2440,
+            arenaMinX: 1340,
+            enemies: [
+                { x: 2080, y: 600, tipo: "beach2" },
+                { x: 2220, y: 630, tipo: "beach2" },
+                { x: 2360, y: 610, tipo: "beach2" }
+            ],
+            boxes: [
+                { x: 1910, y: 635 }
+            ]
+        },
+        {
+            titulo: "BATALHA 3",
+            triggerX: 2600,
+            blockX: 3600,
+            arenaMinX: 2440,
+            enemies: [
+                { x: 3220, y: 600, tipo: "beach2" },
+                { x: 3360, y: 635, tipo: "beach2" },
+                { x: 3500, y: 610, tipo: "beach2" }
+            ],
+            boxes: [
+                { x: 3010, y: 635 }
+            ]
+        },
+       {
+            tipo: "boss",
+            titulo: "KAYLA",
+            triggerX: 3550,
+            blockX: 4160,
+            arenaMinX: 3420,
+            boss: { x: 3980, y: this.boardwalkMid + 10 }
+        }
+    ];
 
         this.criarTexturasProcedurais();
-        this.criarCenario();
-        this.criarDecoracaoPraia();
         this.criarAnimacoes();
+        this.criarCenario();
+      //  this.criarDecoracaoAreia();
         this.criarControles();
         this.criarPlayer();
         this.criarHUD();
@@ -182,6 +191,7 @@ export class Phase2 extends Phaser.Scene {
         ];
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+        this.cameras.main.setZoom(1.07);
 
         this.events.on("player:dead", this.onPlayerDead, this);
 
@@ -190,6 +200,37 @@ export class Phase2 extends Phaser.Scene {
         this.events.on("shutdown", this.finalizarCena, this);
         this.events.on("destroy", this.finalizarCena, this);
     }
+
+
+    posicionarBossParaIntro() {
+            if (!this.boss?.sprite) return;
+
+            const cam = this.cameras.main;
+
+            const targetX = Phaser.Math.Clamp(
+                cam.scrollX + 1030,
+                80,
+                this.worldWidth - 80
+            );
+
+            const spawnX = Phaser.Math.Clamp(
+                cam.scrollX + 1240,
+                80,
+                this.worldWidth - 80
+            );
+
+            const targetY = this.boardwalkMid + 10;
+
+            this.boss.sprite.setPosition(spawnX, targetY);
+            this.boss.sprite.setFlipX(true);
+
+            this.tweens.add({
+                targets: this.boss.sprite,
+                x: targetX,
+                duration: 450,
+                ease: "Quad.Out"
+            });
+        }
 
     update() {
         if (!this.leona || !this.player || !this.keys) return;
@@ -269,14 +310,15 @@ export class Phase2 extends Phaser.Scene {
             this.leona.sprite.x = this.currentLimitX;
         }
 
-        this.enemies.forEach((enemy) => {
+       this.enemies.forEach((enemy) => {
             enemy.update(this.leona, this.enemies);
         });
 
         this.separarInimigosDaLeona();
+        this.prenderInimigosNaArena();
 
         this.enemies = this.enemies.filter((enemy) => {
-            return enemy?.sprite?.active;
+         return enemy?.sprite?.active;
         });
 
         if (this.bossFightStarted && this.boss) {
@@ -307,8 +349,8 @@ export class Phase2 extends Phaser.Scene {
         const dx = sprite.x - leonaSprite.x;
         const dy = sprite.y - leonaY;
 
-        const minX = 58;
-        const minY = 42;
+        const minX = 34;
+        const minY = 30;
 
         const coladoX = Math.abs(dx) < minX;
         const coladoY = Math.abs(dy) < minY;
@@ -361,35 +403,72 @@ export class Phase2 extends Phaser.Scene {
         g.destroy();
     }
 
-    criarCenario() {
-        this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x87ceeb)
-            .setOrigin(0, 0)
-            .setDepth(-100);
+      criarCenario() {
+            this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0xecc17d)
+                .setOrigin(0, 0)
+                .setDepth(-300);
 
-        this.layerSky = this.add.image(-120, 0, "phase2_layer1")
-            .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth + 240, 180)
-            .setDepth(-60);
+            // Céu mais predominante
+            this.layerSky = this.add.image(0, 0, "phase2_sky")
+                .setOrigin(0, 0)
+                .setDisplaySize(1368, 205)
+                .setScrollFactor(0.03)
+                .setDepth(-260);
 
-        this.layerSea = this.add.image(-90, 170, "phase2_layer2")
-            .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth + 180, 150)
-            .setDepth(-50);
+            // Mar mais curto
+            this.layerSea = this.add.sprite(0, 205, "phase2_sea_anim", 0)
+                .setOrigin(0, 0)
+                .setDisplaySize(1572, 85)
+                .setScrollFactor(0.10)
+                .setDepth(-225);
 
-        this.layerSand = this.add.image(-60, 300, "phase2_layer3")
-            .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth + 120, 330)
-            .setDepth(-40);
+            this.layerSea.play("phase2_sea_loop");
 
-        this.layerWalk = this.add.image(-30, 610, "phase2_layer4")
-            .setOrigin(0, 0)
-            .setDisplaySize(this.worldWidth + 60, 110)
-            .setDepth(-30);
+            // Praia como faixa de transição
+            this.layerBeach = this.add.image(0, 290, "phase2_beach")
+                .setOrigin(0, 0)
+                .setDisplaySize(1923, 55)
+                .setScrollFactor(0.22)
+                .setDepth(-195);
 
-        this.add.rectangle(0, 640, this.worldWidth, 80, 0x000000, 0.06)
-            .setOrigin(0, 0)
-            .setDepth(-20);
-    }
+            // Chão jogável
+            this.layerGround = this.add.image(0, 345, "phase2_ground")
+                .setOrigin(0, 0)
+                .setDisplaySize(this.worldWidth, 375)
+                .setScrollFactor(1)
+                .setDepth(-150);
+        }
+        criarDecoracaoAreia() {
+            this.beachDecorBack = [];
+
+            const props = [
+                { key: "decor_cadeira", x: 360, y: 485, altura: 70, angle: -5 },
+                { key: "decor_guardasol", x: 720, y: 500, altura: 95, angle: 4 },
+                { key: "decor_bola", x: 980, y: 495, altura: 48, angle: 0 },
+
+                { key: "decor_cadeira", x: 1320, y: 485, altura: 65, angle: 5 },
+                { key: "decor_guardasol", x: 1680, y: 500, altura: 90, angle: -4 },
+                { key: "decor_bola", x: 2050, y: 492, altura: 45, angle: 0 },
+
+                { key: "decor_cadeira", x: 2500, y: 485, altura: 70, angle: -6 },
+                { key: "decor_guardasol", x: 2920, y: 500, altura: 95, angle: 3 },
+                { key: "decor_bola", x: 3350, y: 492, altura: 45, angle: 0 }
+            ];
+
+            props.forEach((data) => {
+                const prop = this.add.image(data.x, data.y, data.key)
+                    .setOrigin(0.5, 1)
+                    .setAngle(data.angle)
+                    .setScrollFactor(0.22)
+                    .setDepth(-180)
+                    .setAlpha(0.95);
+
+                const escala = data.altura / prop.height;
+                prop.setScale(escala);
+
+                this.beachDecorBack.push(prop);
+            });
+        }
 
     criarDecoracaoPraia() {
         this.beachDecor = [];
@@ -439,12 +518,7 @@ export class Phase2 extends Phaser.Scene {
     }
 
     atualizarParallax() {
-        const scrollX = this.cameras.main.scrollX;
-
-        if (this.layerSky) this.layerSky.x = -120 + (scrollX * 0.03);
-        if (this.layerSea) this.layerSea.x = -90 + (scrollX * 0.08);
-        if (this.layerSand) this.layerSand.x = -60 + (scrollX * 0.14);
-        if (this.layerWalk) this.layerWalk.x = -30 + (scrollX * 0.22);
+    
     }
 
     criarAnimacoes() {
@@ -452,6 +526,18 @@ export class Phase2 extends Phaser.Scene {
         StageEnemy.createAnimations(this);
         Boss2Training.createAnimations(this);
         BeachEnemy2.createAnimations(this);
+ 
+        if (!this.anims.exists("phase2_sea_loop")) {
+            this.anims.create({
+                key: "phase2_sea_loop",
+                frames: this.anims.generateFrameNumbers("phase2_sea_anim", {
+                    start: 0,
+                    end: 5
+                }),
+                frameRate: 5,
+                repeat: -1
+            });
+        }
     }
 
     criarControles() {
@@ -740,6 +826,12 @@ export class Phase2 extends Phaser.Scene {
     iniciarDialogoBoss() {
         if (this.bossIntroStarted || !this.pendingBossConfig) return;
 
+        if (!this.boss) {
+            this.spawnBoss(this.pendingBossConfig.boss.x, this.pendingBossConfig.boss.y, false);
+        }
+
+        this.posicionarBossParaIntro();
+
         this.bossIntroStarted = true;
         this.bossIntroActive = true;
         this.bossDialogActive = true;
@@ -819,6 +911,30 @@ export class Phase2 extends Phaser.Scene {
         this.mostrarDialogoBossAtual();
     }
 
+    prenderInimigosNaArena() {
+        if (!this.waveActive) return;
+
+        const configAtual = this.waveConfigs[this.currentWaveIndex];
+        if (!configAtual || configAtual.tipo === "boss") return;
+
+        const limiteEsquerdo = this.currentArenaMinX ?? 30;
+        const limiteDireito = this.currentLimitX - 55;
+
+        this.enemies.forEach((enemy) => {
+            if (!enemy?.sprite?.active) return;
+            if (!enemy.isAlive?.()) return;
+
+            // Durante a entrada, deixa o inimigo vir de fora da tela.
+            if (enemy.data?.isEntering) return;
+
+            enemy.sprite.x = Phaser.Math.Clamp(
+                enemy.sprite.x,
+                limiteEsquerdo,
+                limiteDireito
+            );
+        });
+    }
+
     encerrarDialogoBoss() {
         this.bossIntroActive = false;
         this.bossDialogActive = false;
@@ -882,12 +998,13 @@ export class Phase2 extends Phaser.Scene {
         this.waveActive = true;
         this.currentLimitX = config.blockX;
         this.leona.setCurrentLimitX?.(this.currentLimitX);
+        this.currentArenaMinX = Math.max(30, config.arenaMinX ?? config.triggerX - 220);
 
         if (config.tipo === "wave" || !config.tipo) {
             this.mostrarAvisoFase(config.titulo);
 
-            config.enemies.forEach((enemyData) => {
-                this.spawnEnemy(enemyData.x, enemyData.y, enemyData.tipo);
+            config.enemies.forEach((enemyData, enemyIndex) => {
+                this.spawnEnemyForaDaTela(enemyData, enemyIndex);
             });
 
             if (config.boxes) {
@@ -943,18 +1060,44 @@ export class Phase2 extends Phaser.Scene {
         this.mostrarAvisoFase("ÁREA LIMPA!");
     }
 
-    spawnEnemy(x, y, tipo = "light") {
+    spawnEnemyForaDaTela(enemyData, index = 0) {
+        const viewW = this.cameras.main.width || 1280;
+        const cameraRight = this.cameras.main.scrollX + viewW;
+
+        const spawnX = Phaser.Math.Clamp(
+            Math.max(
+                cameraRight + 150 + index * 90,
+                enemyData.x + 220 + index * 40
+            ),
+            40,
+            this.worldWidth - 40
+        );
+
+        return this.spawnEnemy(enemyData.x, enemyData.y, enemyData.tipo, {
+            spawnX,
+            isEntering: true,
+            entrySpeed: 150 + index * 12
+        });
+    }
+
+    spawnEnemy(x, y, tipo = "light", opcoes = {}) {
         let enemy;
 
+        const spawnX = opcoes.spawnX ?? x;
+
         if (tipo === "beach2") {
-            enemy = new BeachEnemy2(this, x, y, tipo, {
+            enemy = new BeachEnemy2(this, spawnX, y, tipo, {
                 worldWidth: this.worldWidth,
                 floorTop: this.boardwalkTop,
                 floorBottom: this.boardwalkBottom,
-                alturaEnemy: 188
+                alturaEnemy: 188,
+
+                isEntering: opcoes.isEntering ?? false,
+                entryTargetX: x,
+                entrySpeed: opcoes.entrySpeed ?? 150
             });
         } else {
-            enemy = new StageEnemy(this, x, y, tipo, {
+            enemy = new StageEnemy(this, spawnX, y, tipo, {
                 worldWidth: this.worldWidth,
                 floorTop: this.boardwalkTop,
                 floorBottom: this.boardwalkBottom,

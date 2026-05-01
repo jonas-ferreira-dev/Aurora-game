@@ -75,6 +75,31 @@ export class Boss2Training {
         this.sprite.setCollideWorldBounds(true);
         this.sprite.setFlipX(true);
 
+
+        this.shieldAura = scene.add.ellipse(
+            this.sprite.x,
+            this.sprite.y - this.alturaBoss / 2,
+            145,
+            245,
+            0x7efcff,
+            0.08
+        )
+            .setStrokeStyle(3, 0x7efcff, 0.65)
+            .setDepth(this.sprite.depth - 1)
+            .setVisible(false);
+
+        this.shieldCore = scene.add.ellipse(
+            this.sprite.x,
+            this.sprite.y - this.alturaBoss / 2,
+            110,
+            210,
+            0xffffff,
+            0.035
+        )
+            .setStrokeStyle(1, 0xffffff, 0.35)
+            .setDepth(this.sprite.depth - 2)
+            .setVisible(false);
+
         this.ajustarEscalaSprite();
 
         this.sprite.on(Phaser.Animations.Events.ANIMATION_UPDATE, () => {
@@ -116,6 +141,8 @@ export class Boss2Training {
 
         this.activeWarnings = [];
         this.activeRaios = [];
+        this.pendingRaioEvents = [];
+        this.raioPauseUntil = 0;
 
         // Guarda de qual lado veio o último golpe para arremessar ao morrer
         this.lastDamageFromX = x - 100;
@@ -135,6 +162,49 @@ export class Boss2Training {
         };
     }
 
+
+    atualizarCapsula() {
+    if (!this.sprite || !this.sprite.active) return;
+
+    const protegida =
+        this.state === "charging" ||
+        this.state === "preparing";
+
+    if (!this.shieldAura || !this.shieldCore) return;
+
+    this.shieldAura.setVisible(protegida);
+    this.shieldCore.setVisible(protegida);
+
+    if (!protegida) return;
+
+    const cx = this.sprite.x;
+    const cy = this.sprite.y - this.alturaBoss / 2;
+
+    const pulse = 1 + Math.sin(this.scene.time.now * 0.008) * 0.035;
+
+    this.shieldAura.setPosition(cx, cy);
+    this.shieldCore.setPosition(cx, cy);
+
+    this.shieldAura.setScale(pulse);
+    this.shieldCore.setScale(1 + Math.sin(this.scene.time.now * 0.011) * 0.025);
+
+    this.shieldAura.setDepth(this.sprite.depth - 1);
+    this.shieldCore.setDepth(this.sprite.depth - 2);
+}
+
+pulsarCapsula() {
+    if (!this.shieldAura || !this.shieldAura.visible) return;
+
+    this.scene.tweens.add({
+        targets: [this.shieldAura, this.shieldCore],
+        scaleX: 1.12,
+        scaleY: 1.12,
+        alpha: 0.9,
+        duration: 70,
+        yoyo: true
+    });
+}
+
     update(player, aiEnabled = true) {
         if (!this.sprite || !this.sprite.active) return;
 
@@ -142,100 +212,169 @@ export class Boss2Training {
 
         if (this.data.isDead) {
             this.atualizarBarras();
+            this.atualizarCapsula?.();
+            return;
+        }
+
+        if (this.data.isBeingThrown || this.data.isReturning) {
+            this.sprite.body.setVelocity(0, 0);
+            this.atualizarBarras();
+            this.atualizarCapsula?.();
             return;
         }
 
         if (!aiEnabled) {
-            const delta = this.scene.game.loop.delta || 0;
-            this.stateStartedAt += delta;
-            this.nextStrikeAt += delta;
             this.atualizarBarras();
+            this.atualizarCapsula?.();
             return;
         }
 
         this.atualizarEstado(player);
         this.atualizarBarras();
+        this.atualizarCapsula?.();
     }
 
     atualizarEstado(player) {
+    const now = this.scene.time.now;
+
+    if (this.state === "idle") {
+        if (this.sprite.texture.key !== "boss2_idle") {
+            this.sprite.anims.stop();
+            this.sprite.setTexture("boss2_idle");
+            this.ajustarEscalaSprite();
+        }
+        return;
+    }
+
+    if (this.state === "charging") {
+        const elapsed = now - this.stateStartedAt;
+
+        this.charge = Phaser.Math.Clamp(
+            elapsed / this.chargeDuration,
+            0,
+            1
+        );
+
+        if (!this.data.isHurt && this.sprite.anims.currentAnim?.key !== "boss2_charge") {
+            this.sprite.play("boss2_charge", true);
+            this.ajustarEscalaSprite();
+        }
+
+        if (this.charge >= 1) {
+            this.iniciarPreparacao();
+        }
+
+        return;
+    }
+
+    if (this.state === "preparing") {
+        const elapsed = now - this.stateStartedAt;
+
+        this.charge = 1;
+
+        if (!this.data.isHurt && this.sprite.anims.currentAnim?.key !== "boss2_prepare") {
+            this.sprite.play("boss2_prepare", true);
+            this.ajustarEscalaSprite();
+        }
+
+        if (elapsed >= this.prepareDuration) {
+            this.iniciarRaios();
+        }
+
+        return;
+    }
+
+    if (this.state === "casting") {
+        const elapsed = now - this.stateStartedAt;
+
+        if (elapsed >= this.castDuration) {
+            this.encerrarRaios();
+            return;
+        }
+
+        // Se a Kayla tomou dano, pausa os raios.
+        // Ela continua vulnerável, mas não continua invocando ataque.
+        if (this.data.isHurt || now < this.raioPauseUntil) {
+            return;
+        }
+
+        if (this.sprite.texture.key !== "boss2_raio") {
+            this.sprite.anims.stop();
+            this.sprite.setTexture("boss2_raio");
+            this.ajustarEscalaSprite();
+        }
+
+        if (now >= this.nextStrikeAt) {
+            this.invocarGrupoDeRaios(player);
+            this.nextStrikeAt = now + this.castInterval;
+        }
+
+        return;
+    }
+
+    if (this.state === "post_cast") {
+        const elapsed = now - this.stateStartedAt;
+
+        if (this.sprite.texture.key !== "boss2_idle") {
+            this.sprite.anims.stop();
+            this.sprite.setTexture("boss2_idle");
+            this.ajustarEscalaSprite();
+        }
+
+        if (elapsed >= this.postCastDelay) {
+            this.iniciarCarregamento();
+        }
+    }
+}
+
+
+    interromperRaiosPorDano(pausaMs = 700) {
         const now = this.scene.time.now;
 
-        if (this.state === "idle") {
-            if (this.sprite.texture.key !== "boss2_idle") {
-                this.sprite.anims.stop();
-                this.sprite.setTexture("boss2_idle");
-                this.ajustarEscalaSprite();
-            }
-            return;
-        }
+        this.raioPauseUntil = now + pausaMs;
+        this.nextStrikeAt = this.raioPauseUntil + 180;
 
-        if (this.state === "charging") {
-            const elapsed = now - this.stateStartedAt;
-            this.charge = Phaser.Math.Clamp(elapsed / this.chargeDuration, 0, 1);
+        // Cancela raios que foram agendados mas ainda não caíram.
+        this.pendingRaioEvents.forEach((event) => {
+            event?.remove(false);
+        });
+        this.pendingRaioEvents = [];
 
-            if (!this.data.isHurt && this.sprite.anims.currentAnim?.key !== "boss2_charge") {
-                this.sprite.play("boss2_charge", true);
-                this.ajustarEscalaSprite();
-            }
+        // Remove avisos no chão.
+        this.activeWarnings.forEach((aviso) => {
+            if (!aviso?.active) return;
 
-            if (this.charge >= 1) {
-                this.iniciarPreparacao();
-            }
+            this.scene.tweens.killTweensOf(aviso);
 
-            return;
-        }
+            this.scene.tweens.add({
+                targets: aviso,
+                alpha: 0,
+                scaleX: 1.45,
+                scaleY: 0.65,
+                duration: 90,
+                onComplete: () => {
+                    aviso.destroy();
+                }
+            });
+        });
+        this.activeWarnings = [];
 
-        if (this.state === "preparing") {
-            const elapsed = now - this.stateStartedAt;
+        // Some com raios ativos rapidamente.
+        this.activeRaios.forEach((raio) => {
+            if (!raio?.active) return;
 
-            if (!this.data.isHurt && this.sprite.anims.currentAnim?.key !== "boss2_prepare") {
-                this.sprite.play("boss2_prepare", true);
-                this.ajustarEscalaSprite();
-            }
+            this.scene.tweens.killTweensOf(raio);
 
-            if (elapsed >= this.prepareDuration) {
-                this.iniciarRaios();
-            }
-
-            return;
-        }
-
-        if (this.state === "casting") {
-            const elapsed = now - this.stateStartedAt;
-
-            // Agora a boss é vulnerável durante o casting.
-            // Então, se ela estiver em damage0, não força voltar para car4 imediatamente.
-            if (!this.data.isHurt && this.sprite.texture.key !== "boss2_raio") {
-                this.sprite.anims.stop();
-                this.sprite.setTexture("boss2_raio");
-                this.ajustarEscalaSprite();
-            }
-
-            if (now >= this.nextStrikeAt) {
-                this.invocarGrupoDeRaios(player);
-                this.nextStrikeAt = now + this.castInterval;
-            }
-
-            if (elapsed >= this.castDuration) {
-                this.encerrarRaios();
-            }
-
-            return;
-        }
-
-        if (this.state === "post_cast") {
-            const elapsed = now - this.stateStartedAt;
-
-            if (this.sprite.texture.key !== "boss2_idle") {
-                this.sprite.anims.stop();
-                this.sprite.setTexture("boss2_idle");
-                this.ajustarEscalaSprite();
-            }
-
-            if (elapsed >= this.postCastDelay) {
-                this.iniciarCarregamento();
-            }
-        }
+            this.scene.tweens.add({
+                targets: raio,
+                alpha: 0,
+                duration: 80,
+                onComplete: () => {
+                    raio.destroy();
+                }
+            });
+        });
+        this.activeRaios = [];
     }
 
     iniciarCarregamento() {
@@ -357,69 +496,86 @@ export class Boss2Training {
                 }
             ];
 
-            pontos.forEach((ponto, index) => {
-                this.scene.time.delayedCall(index * atrasoEntreRaios, () => {
-                    this.criarRaioNoPonto(ponto.x, ponto.y, player, {
-                        pressao: ponto.pressao
-                    });
+         pontos.forEach((ponto, index) => {
+            const event = this.scene.time.delayedCall(index * atrasoEntreRaios, () => {
+                this.pendingRaioEvents = this.pendingRaioEvents.filter((item) => item !== event);
+
+                if (this.data.isDead) return;
+                if (this.state !== "casting") return;
+                if (this.data.isHurt) return;
+                if (this.scene.time.now < this.raioPauseUntil) return;
+
+                this.criarRaioNoPonto(ponto.x, ponto.y, player, {
+                    pressao: ponto.pressao
                 });
             });
+
+            this.pendingRaioEvents.push(event);
+        });
         }
 
     criarRaioNoPonto(x, y, player, opcoes = {}) {
             if (this.data.isDead || this.state !== "casting") return;
-
+            if (this.data.isHurt || this.scene.time.now < this.raioPauseUntil) return;
             const pressao = opcoes.pressao === true;
 
             const raioAvisoTamanho = pressao ? 39 : 34;
             const avisoDuracao = pressao ? 115 : 150;
             const avisoRepeat = pressao ? 0 : 1;
-
-            const aviso = this.scene.add.circle(x, y - 6, raioAvisoTamanho, 0xffffff, 0.25)
-                .setStrokeStyle(2, 0x7efcff, 0.9)
-                .setDepth(y + 40);
-
+ 
+            const aviso = this.scene.add.ellipse(
+                x,
+                y + 4,
+                pressao ? 105 : 90,
+                pressao ? 34 : 28,
+                0x7efcff,
+                0.16
+            )
+                .setStrokeStyle(2, 0xffffff, 0.65)
+                .setDepth(y + 35);
+  
             this.activeWarnings.push(aviso);
 
-            this.scene.tweens.add({
-                targets: aviso,
-                alpha: 0.78,
-                scaleX: pressao ? 1.15 : 1.25,
-                scaleY: pressao ? 1.15 : 1.25,
-                duration: avisoDuracao,
-                yoyo: true,
-                repeat: avisoRepeat,
-                onComplete: () => {
-                    this.activeWarnings = this.activeWarnings.filter((item) => item !== aviso);
-                    aviso.destroy();
+       this.scene.tweens.add({
+            targets: aviso,
+            alpha: 0.55,
+            scaleX: pressao ? 1.35 : 1.25,
+            scaleY: pressao ? 1.15 : 1.08,
+            duration: avisoDuracao,
+            yoyo: true,
+            repeat: avisoRepeat,
+            onComplete: () => {
+                this.activeWarnings = this.activeWarnings.filter((item) => item !== aviso);
+                aviso.destroy();
 
-                    if (this.data.isDead || this.state !== "casting") return;
+                if (this.data.isDead || this.state !== "casting") return;
+                if (this.data.isHurt || this.scene.time.now < this.raioPauseUntil) return;
 
-                    const raio = this.scene.add.image(x, y + 10, "boss2_raio2")
-                        .setOrigin(0.5, 1)
-                        .setDepth(y + 80)
-                        .setAlpha(0.95);
+                const raio = this.scene.add.image(x, y + 10, "boss2_raio2")
+                    .setOrigin(0.5, 1)
+                    .setDepth(y + 80)
+                    .setAlpha(0.95);
 
-                    this.ajustarAlturaImagem(raio, pressao ? 250 : 230);
-                    this.activeRaios.push(raio);
+                this.ajustarAlturaImagem(raio, pressao ? 250 : 230);
+                this.activeRaios.push(raio);
 
-                    this.verificarDanoRaio(x, y, player, {
-                        pressao
-                    });
+                this.verificarDanoRaio(x, y, player, {
+                    pressao
+                });
 
-                    this.scene.tweens.add({
-                        targets: raio,
-                        alpha: 0,
-                        scaleX: raio.scaleX * 1.08,
-                        scaleY: raio.scaleY * 1.08,
-                        duration: 260,
-                        onComplete: () => {
-                            this.activeRaios = this.activeRaios.filter((item) => item !== raio);
-                            raio.destroy();
-                        }
-                    });
-                }
-            });
+                this.scene.tweens.add({
+                    targets: raio,
+                    alpha: 0,
+                    scaleX: raio.scaleX * 1.08,
+                    scaleY: raio.scaleY * 1.08,
+                    duration: 260,
+                    onComplete: () => {
+                        this.activeRaios = this.activeRaios.filter((item) => item !== raio);
+                        raio.destroy();
+                    }
+                });
+            }
+        });
         }
 
       verificarDanoRaio(x, y, player, opcoes = {}) {
@@ -436,7 +592,11 @@ export class Boss2Training {
             const hitboxY = pressao ? 64 : 56;
 
             if (dx <= hitboxX && dy <= hitboxY) {
-                player.receberDano(14, x);
+                if (typeof player.receberDanoRaio === "function") {
+                    player.receberDanoRaio(14, x);
+                } else {
+                    player.receberDano(14, x);
+                }
             }
         }
 
@@ -461,7 +621,16 @@ export class Boss2Training {
             this.data.currentHp = 0;
         }
 
+        if (opcoes.arremessarDepois === true && player?.sprite) {
+            this.arremessar(player);
+            return true;
+        }
+
         this.data.isHurt = true;
+
+        if (this.state === "casting") {
+            this.interromperRaiosPorDano(700);
+        }
 
         this.sprite.anims.stop();
         this.sprite.setTexture("boss2_damage0");
@@ -518,12 +687,14 @@ export class Boss2Training {
     feedbackInvulneravel() {
         if (!this.sprite || !this.sprite.active) return;
 
+        this.pulsarCapsula();
+
         this.scene.tweens.add({
             targets: this.sprite,
-            alpha: 0.45,
-            duration: 55,
+            alpha: 0.65,
+            duration: 45,
             yoyo: true,
-            repeat: 2,
+            repeat: 1,
             onComplete: () => {
                 if (this.sprite?.active) {
                     this.sprite.setAlpha(1);
@@ -562,12 +733,154 @@ export class Boss2Training {
             });
         }
 
-    arremessar() {
-        this.liberarHitstun();
+   arremessar(player = null) {
+    if (!this.sprite || !this.sprite.active) return;
+    if (this.data.isDead) return;
+    if (this.data.isBeingThrown || this.data.isReturning) return;
+
+    const sprite = this.sprite;
+
+    if (this.data.hurtReturnEvent) {
+        this.data.hurtReturnEvent.remove(false);
+        this.data.hurtReturnEvent = null;
     }
+
+    this.scene.tweens.killTweensOf(sprite);
+    this.limparRaiosAtivos();
+
+    this.data.isBeingThrown = true;
+    this.data.isReturning = false;
+    this.data.isAttacking = false;
+    this.data.isHurt = true;
+
+    this.state = "knockdown";
+    this.charge = 0;
+    this.raioPauseUntil = this.scene.time.now + 900;
+    this.nextStrikeAt = this.raioPauseUntil + 300;
+
+    sprite.body.setVelocity(0, 0);
+    sprite.anims.stop();
+    sprite.setTexture("boss2_damage0");
+    this.ajustarEscalaSprite();
+
+    const origemX =
+        player?.sprite?.x ??
+        this.lastDamageFromX ??
+        sprite.x - 80;
+
+    this.lastDamageFromX = origemX;
+
+    // Se Leona está à esquerda, Kayla é jogada para a direita.
+    // Se Leona está à direita, Kayla é jogada para a esquerda.
+    const direcao = origemX < sprite.x ? 1 : -1;
+
+    const xBase = sprite.x;
+    const yBase = sprite.y;
+
+    const xPico = Phaser.Math.Clamp(
+        xBase + direcao * 70,
+        80,
+        this.worldWidth - 80
+    );
+
+    const yPico = Phaser.Math.Clamp(
+        yBase - 34,
+        this.floorTop,
+        this.floorBottom
+    );
+
+    const xFinal = Phaser.Math.Clamp(
+        xBase + direcao * 120,
+        80,
+        this.worldWidth - 80
+    );
+
+    const yFinal = Phaser.Math.Clamp(
+        yBase + 10,
+        this.floorTop,
+        this.floorBottom
+    );
+
+    // Se a pose cair invertida visualmente, troque para: direcao > 0
+    const flipQueda = direcao < 0;
+
+    this.scene.tweens.add({
+        targets: sprite,
+        x: xPico,
+        y: yPico,
+        angle: direcao * 8,
+        duration: 150,
+        ease: "Quad.Out",
+        onComplete: () => {
+            if (!sprite.active || this.data.isDead) return;
+
+            sprite.anims.stop();
+            sprite.setTexture("boss2_damage1");
+            sprite.setFlipX(flipQueda);
+            this.ajustarEscalaBossCaida();
+
+            this.scene.tweens.add({
+                targets: sprite,
+                x: xFinal,
+                y: yFinal,
+                angle: 0,
+                duration: 260,
+                ease: "Quad.In",
+                onUpdate: () => {
+                    if (sprite.active) {
+                        sprite.setFlipX(flipQueda);
+                        this.ajustarEscalaBossCaida();
+                    }
+                },
+                onComplete: () => {
+                    if (!sprite.active || this.data.isDead) return;
+
+                    sprite.anims.stop();
+                    sprite.setTexture("boss2_damage4");
+                    sprite.setFlipX(flipQueda);
+                    this.ajustarEscalaBossCaida();
+
+                    this.scene.time.delayedCall(520, () => {
+                        if (!sprite.active || this.data.isDead) return;
+
+                        this.data.isBeingThrown = false;
+                        this.data.isReturning = false;
+                        this.data.isHurt = false;
+                        this.data.isAttacking = false;
+
+                        sprite.setAngle(0);
+                        sprite.setTexture("boss2_idle");
+                        this.ajustarEscalaSprite();
+
+                        // Depois de cair, ela dá uma respirada e volta a carregar.
+                        this.state = "post_cast";
+                        this.stateStartedAt = this.scene.time.now;
+                        this.charge = 0;
+                    });
+                }
+            });
+        }
+    });
+}
 
     atacar() {
         this.forcarRaio();
+    }
+
+
+    ajustarEscalaBossCaida() {
+        if (!this.sprite || !this.sprite.frame) return;
+
+        const larguraOriginal = this.sprite.frame.width;
+        const alturaOriginal = this.sprite.frame.height;
+
+        const larguraDesejada = 170;
+        const alturaDesejada = 165;
+
+        this.sprite.setScale(
+            larguraDesejada / larguraOriginal,
+            alturaDesejada / alturaOriginal
+        );
     }
 
     forcarRaio() {
@@ -794,6 +1107,12 @@ export class Boss2Training {
     }
 
     limparRaiosAtivos() {
+
+        this.pendingRaioEvents?.forEach((event) => {
+            event?.remove(false);
+        });
+        this.pendingRaioEvents = [];
+
         this.activeWarnings.forEach((item) => {
             if (item?.active) {
                 this.scene.tweens.killTweensOf(item);
@@ -886,6 +1205,11 @@ export class Boss2Training {
         this.hpBarFill?.destroy();
         this.raioBarBg?.destroy();
         this.raioBarFill?.destroy();
+
+        this.shieldAura?.destroy();
+        this.shieldCore?.destroy();
+        this.shieldAura = null;
+        this.shieldCore = null;
 
         if (this.sprite) {
             this.scene.tweens.killTweensOf(this.sprite);

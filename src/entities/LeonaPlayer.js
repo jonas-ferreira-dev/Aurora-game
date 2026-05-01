@@ -132,6 +132,7 @@ export class LeonaPlayer {
 
         this.isJumping = false;
         this.isAirKicking = false;
+        this.isBeingShocked = false;
         this.jumpGroundY = null;
         this.jumpTween = null;
         this.jumpOffset = { y: 0 };
@@ -141,6 +142,11 @@ export class LeonaPlayer {
 
     update(cursors, keys, targets) {
         if (this.isDead) {
+            this.sprite.setVelocity(0, 0);
+            return;
+        }
+
+        if (this.isBeingShocked) {
             this.sprite.setVelocity(0, 0);
             return;
         }
@@ -715,6 +721,138 @@ export class LeonaPlayer {
         return (acertouNaFrente || muitoColado) && dy <= alcanceY;
     }
 
+
+    receberDanoRaio(valor, origemX = null) {
+        if (this.isDead) return;
+        if (this.isBeingShocked) return;
+        if (this.scene.time.now < this.playerIframesUntil) return;
+
+        this.playerIframesUntil = this.scene.time.now + 900;
+
+        this.currentHp -= valor;
+        if (this.currentHp < 0) this.currentHp = 0;
+
+        this.scene.tocarSom?.(this.scene.sfxHurt, true);
+
+        if (this.comboWaitEvent) {
+            this.comboWaitEvent.remove(false);
+            this.comboWaitEvent = null;
+        }
+
+        if (this.jumpTween) {
+            this.jumpTween.stop();
+            this.jumpTween = null;
+        }
+
+        if (this.jumpTakeoffEvent) {
+            this.jumpTakeoffEvent.remove(false);
+            this.jumpTakeoffEvent = null;
+        }
+
+        this.isBeingShocked = true;
+        this.inAction = true;
+        this.isPunching = false;
+        this.isJumping = false;
+        this.isAirKicking = false;
+        this.comboStep = 0;
+        this.punchBuffer = 0;
+        this.comboWaitingForInput = false;
+        this.comboAcertouInimigo = false;
+        this.comboHitsConectados = 0;
+        this.currentPunchHit = false;
+
+        this.jumpGroundY = null;
+        this.jumpOffset = { y: 0 };
+
+        this.sprite.setVelocity(0, 0);
+        this.sprite.anims.stop();
+        this.sprite.setTexture("leona_damage");
+        this.ajustarEscalaSprite();
+
+        const ALTURA_LEONA_CAIDA_RAIO = 175;
+        const TEMPO_SUBIDA_RAIO = 150;
+        const TEMPO_QUEDA_RAIO = 280;
+        const TEMPO_NO_CHAO_APOS_RAIO = 800;
+
+        const direcao = origemX !== null && origemX <= this.sprite.x ? 1 : -1;
+
+        // Se a pose deitada ainda aparecer invertida, troque esta linha para:
+        // const flipCaida = direcao > 0;
+        const flipCaida = direcao < 0;
+
+        const xBase = this.sprite.x;
+        const yBase = this.getGroundY ? this.getGroundY() : this.sprite.y;
+
+        const limiteX = this.currentLimitX ?? this.worldWidth - 30;
+
+        const xPico = Phaser.Math.Clamp(
+            xBase + direcao * 48,
+            30,
+            limiteX
+        );
+
+        const xFinal = Phaser.Math.Clamp(
+            xBase + direcao * 86,
+            30,
+            limiteX
+        );
+
+        const yFinal = Phaser.Math.Clamp(
+            yBase + 10,
+            this.floorTop,
+            this.floorBottom
+        );
+
+        this.scene.tweens.killTweensOf(this.sprite);
+
+       this.scene.tweens.add({
+            targets: this.sprite,
+            x: xPico,
+            y: yBase - 38,
+            angle: direcao * -8,
+            duration: TEMPO_SUBIDA_RAIO,
+            ease: "Quad.Out",
+            onComplete: () => {
+                if (!this.sprite.active) return;
+
+                this.sprite.setTexture("leona_death1");
+                this.sprite.setFlipX(flipCaida);
+                this.ajustarEscalaSpritePorAltura(ALTURA_LEONA_CAIDA_RAIO);
+
+                this.scene.tweens.add({
+                    targets: this.sprite,
+                    x: xFinal,
+                    y: yFinal,
+                    angle: 0,
+                    duration: TEMPO_QUEDA_RAIO,
+                    ease: "Quad.In",
+                    onComplete: () => {
+                        if (!this.sprite.active) return;
+
+                        if (this.currentHp <= 0) {
+                            this.morrer(origemX);
+                            return;
+                        }
+
+                        this.sprite.setTexture("leona_death2");
+                        this.sprite.setFlipX(flipCaida);
+                        this.ajustarEscalaSpritePorAltura(ALTURA_LEONA_CAIDA_RAIO);
+
+                        this.scene.time.delayedCall(TEMPO_NO_CHAO_APOS_RAIO, () => {
+                            if (this.isDead) return;
+
+                            this.isBeingShocked = false;
+                            this.inAction = false;
+                            this.sprite.setAngle(0);
+                            this.sprite.play("leona_idle", true);
+                            this.ajustarEscalaSprite();
+                        });
+                    }
+                });
+            }
+        });
+    }
+
     receberDano(valor, origemX = null) {
         if (this.isDead) return;
         if (this.scene.time.now < this.playerIframesUntil) return;
@@ -927,6 +1065,7 @@ export class LeonaPlayer {
         this.sprite.setFlipX(false);
         this.sprite.play("leona_idle", true);
         this.ajustarEscalaSprite();
+        this.isBeingShocked = false;
     }
 
     getGroundY() {
@@ -945,6 +1084,15 @@ export class LeonaPlayer {
 
     isOffensiveAction() {
         return this.isPunching || this.isAirKicking || this.hasAttackArmor();
+    }
+
+    ajustarEscalaSpritePorAltura(alturaAlvo) {
+        if (!this.sprite || !this.sprite.frame) return;
+
+        const alturaOriginal = this.sprite.frame.height;
+        const escala = alturaAlvo / alturaOriginal;
+
+        this.sprite.setScale(escala);
     }
 
     ajustarEscalaSprite() {

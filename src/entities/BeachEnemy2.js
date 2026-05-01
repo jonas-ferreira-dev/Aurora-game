@@ -101,9 +101,11 @@ export class BeachEnemy2 {
             laneOffsetY: Phaser.Math.Between(-18, 18),
             attackOffsetX: Phaser.Math.Between(-30, 30),
             personalSpace: Phaser.Math.Between(72, 88),
+            lastHitFromX: null,
+            deathFlipX: false,
 
-            playerPersonalSpaceX: Phaser.Math.Between(82, 98),
-            playerPersonalSpaceY: 48,
+            playerPersonalSpaceX: Phaser.Math.Between(34, 46),
+            playerPersonalSpaceY: 32,
             retreatAfterAttackUntil: 0,
 
             hurtReturnEvent: null
@@ -188,7 +190,7 @@ export class BeachEnemy2 {
         const precisaRecuarDepoisDoAtaque =
             this.scene.time.now < data.retreatAfterAttackUntil;
 
-        if (muitoColadoNaLeona || precisaRecuarDepoisDoAtaque) {
+        if (precisaRecuarDepoisDoAtaque) {
             this.recuarDoPlayer(player, separacao);
             return;
         }
@@ -216,8 +218,7 @@ export class BeachEnemy2 {
 
             sprite.body.setVelocity(vx, vy);
 
-            if (vx < 0) sprite.setFlipX(true);
-            if (vx > 0) sprite.setFlipX(false);
+            this.virarParaPlayer(player);
 
             if (Math.abs(vx) > 4 || Math.abs(vy) > 4) {
                 this.playWalk();
@@ -251,8 +252,7 @@ export class BeachEnemy2 {
 
         sprite.body.setVelocity(vx, vy);
 
-        if (vx < 0) sprite.setFlipX(true);
-        if (vx > 0) sprite.setFlipX(false);
+        this.virarParaPlayer(player);
 
         const moving = Math.abs(vx) > 3 || Math.abs(vy) > 3;
 
@@ -264,6 +264,31 @@ export class BeachEnemy2 {
 
         sprite.y = Phaser.Math.Clamp(sprite.y, this.floorTop, this.floorBottom);
         this.updateHpBar();
+
+        if (data.isEntering) {
+            const dxEntrada = data.entryTargetX - sprite.x;
+
+            if (Math.abs(dxEntrada) <= 6) {
+                data.isEntering = false;
+                sprite.body.setVelocity(0, 0);
+                this.playIdle();
+                this.updateHpBar();
+                return;
+            }
+
+            const vxEntrada = dxEntrada > 0 ? data.entrySpeed : -data.entrySpeed;
+
+            sprite.body.setVelocity(vxEntrada, 0);
+
+            if (vxEntrada < 0) this.virarParaPlayer(player);;
+            if (vxEntrada > 0) this.virarParaPlayer(player);;
+
+            this.playWalk();
+
+            sprite.y = Phaser.Math.Clamp(sprite.y, this.floorTop, this.floorBottom);
+            this.updateHpBar();
+            return;
+        }
     }
 
     calcularSeparacao(allEnemies) {
@@ -294,6 +319,15 @@ export class BeachEnemy2 {
         return { x: repulsaoX, y: repulsaoY };
     }
 
+    virarParaPlayer(player) {
+        if (!player?.sprite || !this.sprite?.active) return;
+
+        // Seus sprites parecem virados para a direita por padrão.
+        // Então flipX = true quando a Leona está à esquerda.
+        this.sprite.setFlipX(player.sprite.x < this.sprite.x);
+        
+    }
+
     recuarDoPlayer(player, separacao = { x: 0, y: 0 }) {
         if (!player || !player.sprite || !this.sprite?.active) return;
 
@@ -315,9 +349,7 @@ export class BeachEnemy2 {
         vy = Phaser.Math.Clamp(vy, -data.speed * 0.75, data.speed * 0.75);
 
         sprite.body.setVelocity(vx, vy);
-
-        if (vx < 0) sprite.setFlipX(true);
-        if (vx > 0) sprite.setFlipX(false);
+        this.virarParaPlayer(player);
 
         this.playWalk();
 
@@ -339,11 +371,7 @@ export class BeachEnemy2 {
         sprite.body.setVelocity(0, 0);
         sprite.anims.stop();
 
-        if (player.sprite.x < sprite.x) {
-            sprite.setFlipX(true);
-        } else {
-            sprite.setFlipX(false);
-        }
+        this.virarParaPlayer(player);
 
         const isKick = attackType === "kick";
 
@@ -373,9 +401,13 @@ export class BeachEnemy2 {
             }
         });
 
-        this.scene.time.delayedCall(endDelay, () => {
+       this.scene.time.delayedCall(endDelay, () => {
             if (!sprite.active) return;
             if (data.isDead || data.isRemoving) return;
+
+            // Se ele tomou dano durante o ataque, não deixa o callback
+            // sobrescrever o sprite de dano.
+            if (!data.isAttacking || data.isHurt) return;
 
             data.isAttacking = false;
             data.retreatAfterAttackUntil = this.scene.time.now + 260;
@@ -400,17 +432,30 @@ export class BeachEnemy2 {
         this.sprite.anims.stop();
         this.sprite.setTexture("beach2_damage");
         this.ajustarEscalaSprite();
+        this.virarParaPlayer(player);
 
         this.scene.tocarSom?.(this.scene.sfxEnemyDamage, true);
 
         if (player?.sprite) {
-            const empurrao = player.sprite.flipX ? -30 : 30;
+            const origemX = player.sprite.x;
+
+            this.data.lastHitFromX = origemX;
+
+            // Durante o dano, o inimigo olha para quem bateu.
+            this.virarParaPlayer(player);
+
+            // Empurra para longe da Leona.
+            const empurrao = origemX < this.sprite.x ? 30 : -30;
+
             this.sprite.x += empurrao;
             this.sprite.x = Phaser.Math.Clamp(this.sprite.x, 30, this.worldWidth - 30);
+
+            // Garante que o sprite de dano não herdou um flip errado.
+            this.virarParaPlayer(player);
         }
 
         if (this.data.currentHp <= 0) {
-            this.morrer(player?.sprite?.x ?? null);
+            this.morrer(this.data.lastHitFromX ?? player?.sprite?.x ?? null);
             return true;
         }
 
@@ -580,37 +625,54 @@ export class BeachEnemy2 {
     }
 
     aplicarQuedaNaMorte(origemX = null) {
-        const sprite = this.sprite;
+            const sprite = this.sprite;
 
-        const xBase = sprite.x;
-        const yBase = sprite.y;
-        const origemGolpe = origemX !== null ? origemX : xBase - 40;
-        const direcao = origemGolpe < xBase ? 1 : -1;
+            const xBase = sprite.x;
+            const yBase = sprite.y;
 
-        this.scene.tweens.killTweensOf(sprite);
+            const origemGolpe =
+                origemX !== null
+                    ? origemX
+                    : this.data.lastHitFromX ?? xBase - 40;
 
-        this.scene.tweens.add({
-            targets: sprite,
-            x: xBase + direcao * 44,
-            y: yBase - 24,
-            duration: 120,
-            ease: "Quad.Out",
-            onComplete: () => {
-                if (!sprite.active) return;
+            const direcao = origemGolpe < xBase ? 1 : -1;
 
-                sprite.play("beach2_fall", true);
-                this.ajustarEscalaSprite();
+            const flipMorte = direcao > 0;
 
-                this.scene.tweens.add({
-                    targets: sprite,
-                    x: xBase + direcao * 82,
-                    y: Phaser.Math.Clamp(yBase + 14, this.floorTop, this.floorBottom),
-                    duration: 240,
-                    ease: "Quad.In"
-                });
-            }
-        });
-    }
+            this.data.deathFlipX = flipMorte;
+            sprite.setFlipX(flipMorte);
+
+            this.scene.tweens.killTweensOf(sprite);
+
+            this.scene.tweens.add({
+                targets: sprite,
+                x: xBase + direcao * 44,
+                y: yBase - 24,
+                duration: 120,
+                ease: "Quad.Out",
+                onComplete: () => {
+                    if (!sprite.active) return;
+
+                    sprite.setFlipX(flipMorte);
+                    sprite.play("beach2_fall", true);
+                    this.ajustarEscalaSprite();
+                    sprite.setFlipX(flipMorte);
+
+                    this.scene.tweens.add({
+                        targets: sprite,
+                        x: xBase + direcao * 82,
+                        y: Phaser.Math.Clamp(yBase + 14, this.floorTop, this.floorBottom),
+                        duration: 240,
+                        ease: "Quad.In",
+                        onUpdate: () => {
+                            if (sprite.active) {
+                                sprite.setFlipX(flipMorte);
+                            }
+                        }
+                    });
+                }
+            });
+        }
 
     updateHpBar() {
         if (!this.hpBg || !this.hpFill) return;
