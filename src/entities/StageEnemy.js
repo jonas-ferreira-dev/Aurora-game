@@ -440,13 +440,24 @@ export class StageEnemy {
         this.scene.tocarSom?.(this.scene.sfxEnemyDamage, true);
 
         if (player?.sprite) {
-            const empurrao = player.sprite.flipX ? -32 : 32;
+            const atacanteVeioDaEsquerda = player.sprite.x < this.sprite.x;
+
+            // Mantém o inimigo olhando para a Leona durante o hitstun.
+            this.sprite.setFlipX(atacanteVeioDaEsquerda);
+
+            const empurrao = atacanteVeioDaEsquerda ? 32 : -32;
+
             this.sprite.x += empurrao;
             this.sprite.x = Phaser.Math.Clamp(this.sprite.x, 30, this.worldWidth - 30);
         }
 
         if (this.data.currentHp <= 0) {
             this.morrer(player?.sprite?.x ?? null);
+            return true;
+        }
+
+        if (opcoes.arremessarDepois === true && player?.sprite) {
+            this.arremessar(player);
             return true;
         }
 
@@ -484,6 +495,9 @@ export class StageEnemy {
 
             const direcao = player.sprite.x < sprite.x ? 1 : -1;
 
+            const atacanteVeioDaEsquerda = player.sprite.x < sprite.x;
+            const flipDuranteQueda = atacanteVeioDaEsquerda;
+
             const xInicial = sprite.x;
             const yInicial = sprite.y;
 
@@ -510,6 +524,8 @@ export class StageEnemy {
                 this.floorTop,
                 this.floorBottom
             );
+
+            sprite.setFlipX(flipDuranteQueda);
 
             this.scene.tweens.add({
                 targets: sprite,

@@ -789,7 +789,7 @@ export class LeonaPlayer {
 
         // Se a pose deitada ainda aparecer invertida, troque esta linha para:
         // const flipCaida = direcao > 0;
-        const flipCaida = direcao < 0;
+        const flipCaida = direcao > 0;
 
         const xBase = this.sprite.x;
         const yBase = this.getGroundY ? this.getGroundY() : this.sprite.y;
@@ -1133,6 +1133,16 @@ export class LeonaPlayer {
         const escala = alturaAlvo / alturaOriginal;
 
         this.sprite.setScale(escala);
+    }
+
+
+    receberDanoArremesso(valor, origemX = null) {
+        if (typeof this.receberDanoRaio === "function") {
+            this.receberDanoRaio(valor, origemX);
+            return;
+        }
+
+        this.receberDano(valor, origemX);
     }
 
     ajustarEscalaSprite() {
