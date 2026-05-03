@@ -595,28 +595,56 @@ export class Phase2 extends Phaser.Scene {
     }
 
     criarAudio() {
+        const musicVolume = Number(localStorage.getItem("musicVolume") ?? 0.32);
+        const sfxVolume = Number(localStorage.getItem("sfxVolume") ?? 0.65);
+
         this.phaseMusic = this.sound.add("phaseMusic", {
-            volume: 0.32,
+            volume: musicVolume,
             loop: true
         });
 
-        this.sfxPunch = this.sound.add("sfxPunch", { volume: 0.5 });
-        this.sfxKick = this.sound.add("sfxKick", { volume: 0.55 });
-        this.sfxHurt = this.sound.add("sfxHurt", { volume: 0.6 });
-        this.sfxDeath = this.sound.add("sfxDeath", { volume: 0.7 });
-        this.sfxEnemyDamage = this.sound.add("sfxEnemyDamage", { volume: 0.6 });
-        this.sfxVictory = this.sound.add("sfxVictory", { volume: 0.8 });
-        this.sfxDialog = this.sound.add("sfxDialog", { volume: 0.45 });
-        this.sfxBossDeath = this.sound.add("sfxBossDeath", { volume: 0.8 });
+        this.sfxPunch = this.sound.add("sfxPunch", {
+            volume: sfxVolume
+        });
 
-        if (!this.sound.locked) {
-            this.phaseMusic.play();
-        } else {
-            this.sound.once("unlocked", () => {
-                if (this.phaseMusic && !this.phaseMusic.isPlaying) {
-                    this.phaseMusic.play();
-                }
-            });
+        this.sfxKick = this.sound.add("sfxKick", {
+            volume: sfxVolume
+        });
+
+        this.sfxHurt = this.sound.add("sfxHurt", {
+            volume: sfxVolume
+        });
+
+        this.sfxDeath = this.sound.add("sfxDeath", {
+            volume: sfxVolume
+        });
+
+        this.sfxEnemyDamage = this.sound.add("sfxEnemyDamage", {
+            volume: sfxVolume
+        });
+
+        this.sfxVictory = this.sound.add("sfxVictory", {
+            volume: sfxVolume
+        });
+
+        this.sfxDialog = this.sound.add("sfxDialog", {
+            volume: sfxVolume * 0.7
+        });
+
+        this.sfxBossDeath = this.sound.add("sfxBossDeath", {
+            volume: sfxVolume
+        });
+
+        if (musicVolume > 0) {
+            if (!this.sound.locked) {
+                this.phaseMusic.play();
+            } else {
+                this.sound.once("unlocked", () => {
+                    if (this.phaseMusic && !this.phaseMusic.isPlaying) {
+                        this.phaseMusic.play();
+                    }
+                });
+            }
         }
     }
 

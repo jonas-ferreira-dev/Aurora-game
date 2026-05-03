@@ -18,19 +18,23 @@ export class Lore extends Phaser.Scene {
         this.add.image(640, 360, "loreBg").setDisplaySize(1280, 720);
         this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.45);
 
+        const musicVolume = Number(localStorage.getItem("musicVolume") ?? 0.45);
+
         this.loreMusic = this.sound.add("loreMusic", {
-            volume: 0.45,
+            volume: musicVolume,
             loop: true
         });
 
-        if (!this.sound.locked) {
-            this.loreMusic.play();
-        } else {
-            this.sound.once("unlocked", () => {
-                if (this.loreMusic && !this.loreMusic.isPlaying) {
-                    this.loreMusic.play();
-                }
-            });
+        if (musicVolume > 0) {
+            if (!this.sound.locked) {
+                this.loreMusic.play();
+            } else {
+                this.sound.once("unlocked", () => {
+                    if (this.loreMusic && !this.loreMusic.isPlaying) {
+                        this.loreMusic.play();
+                    }
+                });
+            }
         }
 
         const textoLore = [

@@ -466,34 +466,59 @@ export class Phase1 extends Phaser.Scene {
         }
     }
 
-  criarAudio() {
-    this.phaseMusic = this.sound.add("phaseMusic", {
-        volume: 0.35,
-        loop: true
-    });
+        criarAudio() {
+            const musicVolume = Number(localStorage.getItem("musicVolume") ?? 0.35);
+            const sfxVolume = Number(localStorage.getItem("sfxVolume") ?? 0.65);
 
-    this.sfxPunch = this.sound.add("sfxPunch", { volume: 0.55 });
-    this.sfxPunchEmpty = this.sound.add("sfxPunchEmpty", { volume: 0.38 });
-    this.sfxKick = this.sound.add("sfxKick", { volume: 0.55 });
+            this.phaseMusic = this.sound.add("phaseMusic", {
+                volume: musicVolume,
+                loop: true
+            });
 
-    this.sfxHurt = this.sound.add("sfxHurt", { volume: 0.6 }); // Leona levando dano
-    this.sfxDeath = this.sound.add("sfxDeath", { volume: 0.7 }); // Leona morrendo
+            this.sfxPunch = this.sound.add("sfxPunch", {
+                volume: sfxVolume
+            });
 
-    this.sfxEnemyDamage = this.sound.add("sfxEnemyDamage", { volume: 0.6 }); // inimigos/boss levando dano
-    this.sfxBossDeath = this.sound.add("sfxBossDeath", { volume: 0.75 }); // boss morrendo
+            this.sfxPunchEmpty = this.sound.add("sfxPunchEmpty", {
+                volume: sfxVolume * 0.7
+            });
 
-    this.sfxVictory = this.sound.add("sfxVictory", { volume: 0.8 });
+            this.sfxKick = this.sound.add("sfxKick", {
+                volume: sfxVolume
+            });
 
-    if (!this.sound.locked) {
-        this.phaseMusic.play();
-    } else {
-        this.sound.once("unlocked", () => {
-            if (this.phaseMusic && !this.phaseMusic.isPlaying) {
-                this.phaseMusic.play();
+            this.sfxHurt = this.sound.add("sfxHurt", {
+                volume: sfxVolume
+            });
+
+            this.sfxDeath = this.sound.add("sfxDeath", {
+                volume: sfxVolume
+            });
+
+            this.sfxEnemyDamage = this.sound.add("sfxEnemyDamage", {
+                volume: sfxVolume
+            });
+
+            this.sfxBossDeath = this.sound.add("sfxBossDeath", {
+                volume: sfxVolume
+            });
+
+            this.sfxVictory = this.sound.add("sfxVictory", {
+                volume: sfxVolume
+            });
+
+            if (musicVolume > 0) {
+                if (!this.sound.locked) {
+                    this.phaseMusic.play();
+                } else {
+                    this.sound.once("unlocked", () => {
+                        if (this.phaseMusic && !this.phaseMusic.isPlaying) {
+                            this.phaseMusic.play();
+                        }
+                    });
+                }
             }
-        });
-    }
-}
+        }
 
     tocarSom(audio, restart = false) {
         if (!audio) return;

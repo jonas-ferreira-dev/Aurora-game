@@ -27,17 +27,20 @@ export class Start extends Phaser.Scene {
         this.add.image(640, 360, "menuBg")
             .setDisplaySize(1280, 720);
 
+        const musicVolume = Number(localStorage.getItem("musicVolume") ?? 0.5);
+        const sfxVolume = Number(localStorage.getItem("sfxVolume") ?? 0.65);
+
         this.menuMusic = this.sound.add("menuMusic", {
-            volume: 0.5,
+            volume: musicVolume,
             loop: true
         });
 
         this.sfxSelectOption = this.sound.add("sfxSelectOption", {
-            volume: 0.55
+            volume: sfxVolume
         });
 
         this.sfxClicked = this.sound.add("sfxClicked", {
-            volume: 0.65
+            volume: sfxVolume
         });
 
         if (!this.sound.locked) {
@@ -229,39 +232,76 @@ export class Start extends Phaser.Scene {
         });
     }
 
-    iniciarJogo() {
-        this.trocarCenaComFade("Lore");
-        if (this.started) return;
+  iniciarJogo() {
+    if (this.started) return;
 
-        this.started = true;
+    this.started = true;
 
-        if (this.menuMusic) {
-            this.menuMusic.stop();
+    if (this.menuMusic) {
+        this.menuMusic.stop();
+    }
+
+    this.trocarCenaComFade("Lore");
+}
+
+abrirOpcoes() {
+    if (this.started) return;
+
+    this.started = true;
+    this.trocarCenaComFade("Options");
+}
+
+abrirCreditos() {
+    if (this.started) return;
+
+    this.started = true;
+    this.trocarCenaComFade("Credits");
+}
+
+sairDoJogo() {
+    if (this.started) return;
+
+    this.started = true;
+
+    if (this.menuMusic) {
+        this.menuMusic.stop();
+    }
+
+    this.cameras.main.fadeOut(350, 0, 0, 0);
+
+    this.cameras.main.once(
+        Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
+        () => {
+            // Funciona em builds desktop/Electron/Tauri ou janelas abertas via script.
+            window.close();
+
+            // Fallback para navegador comum, onde window.close pode ser bloqueado.
+            this.add.rectangle(640, 360, 1280, 720, 0x000000, 1)
+                .setScrollFactor(0)
+                .setDepth(99999);
+
+            this.add.text(640, 330, "OBRIGADO POR JOGAR!", {
+                fontSize: "42px",
+                color: "#ffffff",
+                fontStyle: "bold",
+                stroke: "#000000",
+                strokeThickness: 6
+            })
+                .setOrigin(0.5)
+                .setScrollFactor(0)
+                .setDepth(100000);
+
+            this.add.text(640, 395, "Você já pode fechar esta janela.", {
+                fontSize: "24px",
+                color: "#ffd166",
+                fontStyle: "bold"
+            })
+                .setOrigin(0.5)
+                .setScrollFactor(0)
+                .setDepth(100000);
         }
-
-        this.scene.start("Lore");
-    }
-
-    abrirOpcoes() {
-        console.log("Abrir opções");
-
-        // Quando tiver cena de opções:
-        // this.scene.start("Options");
-    }
-
-    abrirCreditos() {
-        console.log("Abrir créditos");
-
-        // Quando tiver cena de créditos:
-        // this.scene.start("Credits");
-    }
-
-    sairDoJogo() {
-        console.log("Sair do jogo");
-
-        // No navegador não dá para fechar a aba livremente.
-        // Se estiver empacotado em Electron/Tauri, depois dá para chamar o fechamento real.
-    }
+    );
+}
 
      finalizarCena() {
         const audios = [

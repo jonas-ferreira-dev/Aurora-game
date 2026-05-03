@@ -12,6 +12,7 @@ import { Phase5 } from "./scenes/Phase5.js";
 import { Phase6 } from "./scenes/Phase6.js";
 import { Phase7 } from "./scenes/Phase7.js";
 import { Credits } from "./scenes/Credits.js";
+import { Options } from "./scenes/Options.js";
 
 const config = {
     type: Phaser.AUTO,
@@ -31,7 +32,9 @@ const config = {
      dom: {
         createContainer: true
     },
-    scene: [Boot ,Splash, Start, Lore, Cene1, PhaseTraining, Phase1, Phase2, Phase3, Phase4, Phase5, Phase6, Phase7, Credits]
+    scene: [Boot ,Splash, Start, Lore, Cene1, 
+            PhaseTraining, Phase1, Phase2, Phase3, Phase4, Phase5, Phase6, Phase7, 
+            Options, Credits]
 };
 
 new Phaser.Game(config);

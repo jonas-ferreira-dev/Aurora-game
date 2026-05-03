@@ -18,19 +18,23 @@ export class Cene1 extends Phaser.Scene {
     create() {
         this.add.image(640, 360, "dialogBg").setDisplaySize(1280, 720);
 
+        const musicVolume = Number(localStorage.getItem("musicVolume") ?? 0.4);
+
         this.dialogMusic = this.sound.add("dialogMusic", {
-            volume: 0.4,
+            volume: musicVolume,
             loop: true
         });
 
-        if (!this.sound.locked) {
-            this.dialogMusic.play();
-        } else {
-            this.sound.once("unlocked", () => {
-                if (this.dialogMusic) {
-                    this.dialogMusic.play();
-                }
-            });
+        if (musicVolume > 0) {
+            if (!this.sound.locked) {
+                this.dialogMusic.play();
+            } else {
+                this.sound.once("unlocked", () => {
+                    if (this.dialogMusic && !this.dialogMusic.isPlaying) {
+                        this.dialogMusic.play();
+                    }
+                });
+            }
         }
 
         this.dialogBox = this.add.rectangle(640, 585, 1160, 205, 0x000000, 0.72)
