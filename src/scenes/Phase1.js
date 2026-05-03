@@ -1,7 +1,8 @@
-import { setupLoadingScreen } from "../ui/LoadingScreen.js";
+import { setupAuroraLoading } from "../ui/LoadingScreen.js";
 import { LeonaPlayer } from "../entities/LeonaPlayer.js";
 import { StageEnemy } from "../entities/StageEnemy.js";
 import { BossPhase1 } from "../entities/BossPhase1.js";
+
 
 
 export class Phase1 extends Phaser.Scene {
@@ -10,7 +11,7 @@ export class Phase1 extends Phaser.Scene {
     }
 
     preload() {
-        setupLoadingScreen(this, "CARREGANDO FASE 1");
+        setupAuroraLoading(this, "BATALHA EM AURORA");
         // Fundo principal
         this.load.image("phase1Bg1", "assets/phase1/cenario1.jpg");
         this.load.image("phase1Bg2", "assets/phase1/cenario2.jpg");

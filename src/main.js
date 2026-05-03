@@ -1,3 +1,4 @@
+import { Boot } from "./scenes/Boot.js";
 import { Splash } from "./scenes/Splash.js";
 import { Start } from "./scenes/Start.js";
 import { Lore } from "./scenes/Lore.js";
@@ -30,7 +31,7 @@ const config = {
      dom: {
         createContainer: true
     },
-    scene: [Splash, Start, Lore, Cene1, PhaseTraining, Phase1, Phase2, Phase3, Phase4, Phase5, Phase6, Phase7, Credits]
+    scene: [Boot ,Splash, Start, Lore, Cene1, PhaseTraining, Phase1, Phase2, Phase3, Phase4, Phase5, Phase6, Phase7, Credits]
 };
 
 new Phaser.Game(config);
