@@ -550,7 +550,7 @@ export class BossPhase1 {
             this.floorBottom
         );
 
-        const flipQueda = direcao < 0;
+        const flipQueda = direcao > 0;
 
         this.scene.tweens.add({
             targets: sprite,

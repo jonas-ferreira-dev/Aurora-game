@@ -34,18 +34,23 @@ export class Phase1 extends Phaser.Scene {
             "assets/audio/punch.ogg"
         ]);
 
+        this.load.audio("sfxPunchEmpty", [
+            "assets/audio/punch_empty.mp3",
+            "assets/audio/punch_empty.ogg"
+        ]);
+
         this.load.audio("sfxKick", [
             "assets/audio/kick.mp3",
             "assets/audio/kick.ogg"
         ]);
 
         this.load.audio("sfxHurt", [
-            "assets/audio/hurt.mp3",
+            "assets/audio/hurt.wav",
             "assets/audio/hurt.ogg"
         ]);
 
         this.load.audio("sfxDeath", [
-            "assets/audio/death.mp3",
+            "assets/audio/death.wav",
             "assets/audio/death.ogg"
         ]);
 
@@ -59,7 +64,7 @@ export class Phase1 extends Phaser.Scene {
     }
 
     create() {
-        this.worldWidth = 4200;
+        this.worldWidth = 6200;
         this.worldHeight = 720;
 
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
@@ -98,53 +103,84 @@ export class Phase1 extends Phaser.Scene {
         this.bossDialogos = [];
 
         this.waveConfigs = [
-            {
-                tipo: "wave",
-                titulo: "BATALHA 1",
-                triggerX: 650,
-                blockX: 980,
-                enemies: [
-                    { x: 1020, y: 610 },
-                    { x: 1160, y: 635 }
-                ],
-                boxes: [
-                    { x: 930, y: 635 }
-                ]
-            },
-            {
-                tipo: "wave",
-                titulo: "BATALHA 2",
-                triggerX: 1650,
-                blockX: 2050,
-                enemies: [
-                    { x: 2100, y: 590 },
-                    { x: 2260, y: 630 }
-                ],
-                boxes: [
-                    { x: 1980, y: 635 }
-                ]
-            },
-            {
-                tipo: "wave",
-                titulo: "BATALHA 3",
-                triggerX: 2650,
-                blockX: 3050,
-                enemies: [
-                    { x: 3110, y: 600 },
-                    { x: 3250, y: 635 }
-                ],
-                boxes: [
-                    { x: 2900, y: 635 }
-                ]
-            },
-            {
-                tipo: "boss",
-                titulo: "EISEN",
-                triggerX: 3400,
-                blockX: 3800,
-                boss: { x: 3920, y: 625 }
-            }
-        ];
+        {
+            tipo: "wave",
+            titulo: "BATALHA 1",
+            triggerX: 650,
+            blockX: 1380,
+            enemies: [
+                { x: 1090, y: 585 },
+                { x: 1230, y: 645 }
+            ],
+            boxes: [
+                { x: 970, y: 635 }
+            ]
+        },
+        {
+            tipo: "wave",
+            titulo: "BATALHA 2",
+            triggerX: 1450,
+            blockX: 2350,
+            enemies: [
+                { x: 1900, y: 575 },
+                { x: 2050, y: 620 },
+                { x: 2180, y: 645 }
+            ],
+            boxes: [
+                { x: 1760, y: 635 }
+            ]
+        },
+        {
+            tipo: "wave",
+            titulo: "BATALHA 3",
+            triggerX: 2300,
+            blockX: 3220,
+            enemies: [
+                { x: 2760, y: 590 },
+                { x: 2910, y: 645 },
+                { x: 3050, y: 615 }
+            ],
+            boxes: [
+                { x: 2590, y: 635 }
+            ]
+        },
+        {
+            tipo: "wave",
+            titulo: "BATALHA 4",
+            triggerX: 3150,
+            blockX: 4080,
+            enemies: [
+                { x: 3610, y: 575 },
+                { x: 3740, y: 625 },
+                { x: 3890, y: 650 }
+            ],
+            boxes: [
+                { x: 3460, y: 635 }
+            ]
+        },
+        {
+            tipo: "wave",
+            titulo: "BATALHA 5",
+            triggerX: 4000,
+            blockX: 5120,
+            enemies: [
+                { x: 4510, y: 580 },
+                { x: 4660, y: 615 },
+                { x: 4800, y: 650 },
+                { x: 4940, y: 595 }
+            ],
+            boxes: [
+                { x: 4320, y: 635 }
+            ]
+        },
+        {
+            tipo: "boss",
+            titulo: "EISEN",
+            triggerX: 5200,
+            blockX: 6120,
+            boss: { x: 5920, y: 625 }
+        }
+    ];
 
         this.criarTexturasProcedurais();
         this.criarCenario();
@@ -429,7 +465,8 @@ export class Phase1 extends Phaser.Scene {
         loop: true
     });
 
-    this.sfxPunch = this.sound.add("sfxPunch", { volume: 0.5 });
+    this.sfxPunch = this.sound.add("sfxPunch", { volume: 0.55 });
+    this.sfxPunchEmpty = this.sound.add("sfxPunchEmpty", { volume: 0.38 });
     this.sfxKick = this.sound.add("sfxKick", { volume: 0.55 });
 
     this.sfxHurt = this.sound.add("sfxHurt", { volume: 0.6 }); // Leona levando dano
@@ -555,6 +592,7 @@ export class Phase1 extends Phaser.Scene {
         });
 
         this.criarRetryUI();
+        this.criarSetaAvancar();
     }
 
     mostrarMensagemFinal(titulo, subtitulo) {
@@ -570,6 +608,26 @@ export class Phase1 extends Phaser.Scene {
             alpha: 1,
             duration: 250
         });
+    }
+
+    mostrarSetaAvancar() {
+        if (!this.advanceArrow) return;
+
+        const proximaWave = this.waveConfigs[this.currentWaveIndex + 1];
+
+        if (!proximaWave) {
+            this.advanceArrow.setVisible(false);
+            return;
+        }
+
+        this.advanceArrow.setVisible(true);
+        this.advanceArrow.setAlpha(1);
+    }
+
+    esconderSetaAvancar() {
+        if (!this.advanceArrow) return;
+
+        this.advanceArrow.setVisible(false);
     }
 
 
@@ -879,13 +937,30 @@ pararEntidadesEmIdle() {
     iniciarWave(config, index) {
         this.currentWaveIndex = index;
         this.waveActive = true;
-        this.currentLimitX = config.blockX;
+      
+       const maiorXInimigo = config.enemies
+            ? Math.max(...config.enemies.map((enemy) => enemy.x))
+            : config.boss?.x ?? config.blockX;
+
+        this.currentLimitX = config.blockX ?? Phaser.Math.Clamp(
+            maiorXInimigo + 180,
+            0,
+            this.worldWidth - 40
+        );
+
+
+        this.leona?.setCurrentLimitX(this.currentLimitX);
+        this.esconderSetaAvancar();
 
         if (config.tipo === "wave") {
             this.mostrarAvisoFase(config.titulo);
 
             config.enemies.forEach((enemyData) => {
-                this.spawnEnemy(enemyData.x, enemyData.y);
+                this.spawnEnemy(
+                    enemyData.x,
+                    enemyData.y,
+                    enemyData.tipo ?? "light"
+                );
             });
 
             if (config.boxes) {
@@ -904,7 +979,34 @@ pararEntidadesEmIdle() {
     finalizarWave() {
         this.waveActive = false;
         this.currentLimitX = this.worldWidth - 40;
+        this.leona?.setCurrentLimitX(this.currentLimitX);
+
         this.mostrarAvisoFase("ÁREA LIMPA!");
+        this.mostrarSetaAvancar();
+    }
+
+    criarSetaAvancar() {
+        this.advanceArrow = this.add.text(1195, 130, "➜", {
+            fontSize: "68px",
+            color: "#ff2020",
+            fontStyle: "bold",
+            stroke: "#000000",
+            strokeThickness: 6
+        })
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(15000)
+            .setVisible(false);
+
+        this.tweens.add({
+            targets: this.advanceArrow,
+            x: 1215,
+            alpha: 0.55,
+            duration: 420,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut"
+        });
     }
 
     iniciarDialogoBoss() {
@@ -1987,9 +2089,11 @@ pararEntidadesEmIdle() {
     }
 
     finalizarCena() {
+       
         const audios = [
             this.phaseMusic,
             this.sfxPunch,
+            this.sfxPunchEmpty,
             this.sfxKick,
             this.sfxHurt,
             this.sfxDeath,

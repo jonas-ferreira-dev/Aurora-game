@@ -458,7 +458,7 @@ export class LeonaPlayer {
         this.sprite.setTexture(`leona_punch${step}`);
         this.ajustarEscalaSprite();
 
-        this.scene.tocarSom?.(this.scene.sfxPunch, true);
+       
 
         let dano = 12;
         let alcanceX = 118;
@@ -489,7 +489,8 @@ export class LeonaPlayer {
         this.playerAttackArmorUntil = this.scene.time.now + duracao + 90;
 
         this.scene.time.delayedCall(55, () => {
-            this.tentarAcertarAlvos(targets, dano, alcanceX, alcanceY);
+            const acertou = this.tentarAcertarAlvos(targets, dano, alcanceX, alcanceY);
+            this.tocarSomGolpe(acertou);
         });
 
         this.scene.time.delayedCall(duracao, () => {
@@ -611,12 +612,14 @@ export class LeonaPlayer {
         this.sprite.setTexture("leona_kick");
         this.ajustarEscalaSprite();
 
-        this.scene.tocarSom?.(this.scene.sfxKick, true);
+        
 
         this.scene.time.delayedCall(60, () => {
-            this.tentarAcertarAlvos(targets, 26, 160, 84, {
+            const acertou = this.tentarAcertarAlvos(targets, 26, 160, 84, {
                 arremessarDepois: true
             });
+
+            this.tocarSomGolpe(acertou);
         });
 
         this.scene.time.delayedCall(280, () => {
@@ -638,12 +641,13 @@ export class LeonaPlayer {
         this.sprite.setTexture("leona_airKick");
         this.ajustarEscalaSprite();
 
-        this.scene.tocarSom?.(this.scene.sfxKick, true);
-
-        this.scene.time.delayedCall(55, () => {
-            this.tentarAcertarAlvos(targets, 30, 170, 115, {
+       
+       this.scene.time.delayedCall(55, () => {
+            const acertou = this.tentarAcertarAlvos(targets, 30, 170, 115, {
                 arremessarDepois: true
             });
+
+            this.tocarSomGolpe(acertou);
         });
     }
 
@@ -688,6 +692,14 @@ export class LeonaPlayer {
             player: this,
             arremessarDepois: opcoes.arremessarDepois
         });
+    }
+
+    tocarSomGolpe(acertou) {
+        if (acertou) {
+            this.scene.tocarSom?.(this.scene.sfxPunch, true);
+        } else {
+            this.scene.tocarSom?.(this.scene.sfxPunchEmpty, true);
+        }
     }
 
     inimigoNaAreaDoGolpe(enemy, alcanceX = 118, alcanceY = 74) {

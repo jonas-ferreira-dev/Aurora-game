@@ -4,7 +4,7 @@ export class Lore extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image("loreBg", "assets/start/menu-bg.jpg");
+        this.load.image("loreBg", "assets/start/lore.png");
 
         this.load.audio("loreMusic", [
             "assets/audio/lore.mp3",
