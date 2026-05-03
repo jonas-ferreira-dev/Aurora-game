@@ -1,4 +1,4 @@
-import { setupLoadingScreen } from "../ui/LoadingScreen.js";
+
 
 export class Start extends Phaser.Scene {
     constructor() {
@@ -6,7 +6,6 @@ export class Start extends Phaser.Scene {
     }
 
     preload() {
-        setupLoadingScreen(this, "INICIANDO");
 
         this.load.image("menuBg", "assets/start/menu-test.jpg");
 
