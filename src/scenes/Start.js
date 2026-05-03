@@ -1,9 +1,13 @@
+import { setupLoadingScreen } from "../ui/LoadingScreen.js";
+
 export class Start extends Phaser.Scene {
     constructor() {
         super("Start");
     }
 
     preload() {
+        setupLoadingScreen(this, "INICIANDO");
+
         this.load.image("menuBg", "assets/start/menu-test.jpg");
 
         this.load.audio("menuMusic", [
@@ -16,6 +20,8 @@ export class Start extends Phaser.Scene {
     }
 
     create() {
+        this.cameras.main.fadeIn(350, 0, 0, 0);
+
         this.started = false;
         this.selectedIndex = 0;
 
@@ -58,6 +64,17 @@ export class Start extends Phaser.Scene {
 
         this.events.on("shutdown", this.finalizarCena, this);
         this.events.on("destroy", this.finalizarCena, this);
+    }
+
+    trocarCenaComFade(sceneKey, data = {}) {
+        this.cameras.main.fadeOut(350, 0, 0, 0);
+
+        this.cameras.main.once(
+            Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
+            () => {
+                this.scene.start(sceneKey, data);
+            }
+        );
     }
 
     tocarSom(audio, restart = true) {
@@ -214,6 +231,7 @@ export class Start extends Phaser.Scene {
     }
 
     iniciarJogo() {
+        this.trocarCenaComFade("Lore");
         if (this.started) return;
 
         this.started = true;

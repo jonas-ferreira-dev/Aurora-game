@@ -1,6 +1,8 @@
+import { setupLoadingScreen } from "../ui/LoadingScreen.js";
 import { LeonaPlayer } from "../entities/LeonaPlayer.js";
 import { StageEnemy } from "../entities/StageEnemy.js";
 import { BossPhase1 } from "../entities/BossPhase1.js";
+
 
 export class Phase1 extends Phaser.Scene {
     constructor() {
@@ -8,6 +10,7 @@ export class Phase1 extends Phaser.Scene {
     }
 
     preload() {
+        setupLoadingScreen(this, "CARREGANDO FASE 1");
         // Fundo principal
         this.load.image("phase1Bg1", "assets/phase1/cenario1.jpg");
         this.load.image("phase1Bg2", "assets/phase1/cenario2.jpg");
@@ -64,6 +67,9 @@ export class Phase1 extends Phaser.Scene {
     }
 
     create() {
+        
+        this.cameras.main.fadeIn(350, 0, 0, 0);
+
         this.worldWidth = 6200;
         this.worldHeight = 720;
 
@@ -1887,8 +1893,15 @@ pararEntidadesEmIdle() {
         this.tocarSom(this.sfxVictory, true);
         this.mostrarMensagemFinal("FASE 1 CONCLUÍDA!", "Indo para a proxima fase..");
 
-        this.time.delayedCall(2600, () => {
-            this.scene.start("Phase2");
+       this.time.delayedCall(2600, () => {
+            this.cameras.main.fadeOut(450, 0, 0, 0);
+
+            this.cameras.main.once(
+                Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
+                () => {
+                    this.scene.start("Phase2");
+                }
+            );
         });
     }
 
@@ -2010,23 +2023,62 @@ pararEntidadesEmIdle() {
     }
 
     organizarProfundidade() {
+        const ATTACK_PRIORITY = 500;
+        const HITSTUN_PRIORITY = 120;
+
         if (this.player) {
-            this.player.setDepth(this.player.y);
+            let playerDepth = this.player.y;
+
+            const leonaAtacando =
+                this.leona?.isPunching ||
+                this.leona?.isAirKicking ||
+                this.leona?.isOffensiveAction?.();
+
+            if (leonaAtacando) {
+                playerDepth += ATTACK_PRIORITY;
+            }
+
+            this.player.setDepth(playerDepth);
         }
 
         this.enemies.forEach((enemy) => {
-            if (enemy.sprite && enemy.sprite.active) {
-                enemy.sprite.setDepth(enemy.sprite.y);
+            if (!enemy.sprite || !enemy.sprite.active) return;
+
+            let enemyDepth = enemy.sprite.y;
+
+            if (enemy.data?.isAttacking) {
+                enemyDepth += ATTACK_PRIORITY;
             }
+
+            // Se o inimigo está apanhando, deixa um pouco acima do comum,
+            // mas abaixo da Leona atacando.
+            if (enemy.data?.isHurt) {
+                enemyDepth += HITSTUN_PRIORITY;
+            }
+
+            enemy.sprite.setDepth(enemyDepth);
+
+            enemy.hpBg?.setDepth(enemyDepth + 20);
+            enemy.hpFill?.setDepth(enemyDepth + 21);
         });
 
         if (this.boss && this.boss.sprite && this.boss.sprite.active) {
-            this.boss.sprite.setDepth(this.boss.sprite.y);
+            let bossDepth = this.boss.sprite.y;
+
+            if (this.boss.data?.isAttacking) {
+                bossDepth += ATTACK_PRIORITY;
+            }
+
+            if (this.boss.data?.isHurt) {
+                bossDepth += HITSTUN_PRIORITY;
+            }
+
+            this.boss.sprite.setDepth(bossDepth);
         }
 
         this.boxes.forEach((box) => {
             if (box.sprite && box.sprite.active) {
-                box.sprite.setDepth(box.sprite.y);
+                box.sprite.setDepth(box.sprite.y - 5);
             }
         });
 

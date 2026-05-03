@@ -1,3 +1,4 @@
+import { setupLoadingScreen } from "../ui/LoadingScreen.js";
 import { LeonaPlayer } from "../entities/LeonaPlayer.js";
 import { StageEnemy } from "../entities/StageEnemy.js";
 import { Boss2Training } from "../entities/Boss2Training.js";
@@ -9,6 +10,7 @@ export class Phase2 extends Phaser.Scene {
     }
 
    preload() {
+        setupLoadingScreen(this, "CARREGANDO FASE 2");
         // Cenário da fase 2
         this.load.image("phase2_sky", "assets/phase2/phase2_sky.png");
         this.load.image("phase2_farclouds", "assets/phase2/phase2_farclouds.png");
