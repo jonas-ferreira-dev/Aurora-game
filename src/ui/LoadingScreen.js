@@ -1,4 +1,4 @@
-export function setupAuroraLoading(scene, titulo = "BATALHA AURORA") {
+export function setupAuroraLoading(scene, titulo = ".") {
     const width = scene.scale.width;
     const height = scene.scale.height;
 

@@ -12,10 +12,26 @@ export class Phase1 extends Phaser.Scene {
 
     preload() {
         setupAuroraLoading(this, "BATALHA EM AURORA");
-        // Fundo principal
-        this.load.image("phase1Bg1", "assets/phase1/cenario1.jpg");
-        this.load.image("phase1Bg2", "assets/phase1/cenario2.jpg");
-        this.load.image("phase1Bg3", "assets/phase1/cenario3.jpg");
+        // Fundo urbano novo
+        // Cenário urbano novo
+        this.load.image("phase1_sky", "assets/phase1/sky.jpg");
+
+        // Fachadas + calçada
+        this.load.image("phase1_facade_a", "assets/phase1/cenario1.jpg");
+        this.load.image("phase1_facade_b", "assets/phase1/cenario2.png");
+
+        // Chão atual da Phase1 — manter
+        this.load.image("phase1_road", "assets/phase1/phase2_road.png");
+
+        // Chão atual da Phase1 — manter
+        this.load.image("phase1_base", "assets/phase1/phase1_base.png");
+      //  this.load.image("phase1_orla", "assets/phase1/phase1_orla.png");
+        this.load.image("phase1_road", "assets/phase1/phase1_road.png");
+
+        this.load.image("building_glass", "assets/phase1/building_glass.png");
+        this.load.image("building_yellow", "assets/phase1/building_yellow.png");
+        this.load.image("building_colonial", "assets/phase1/building_colonial.png");
+        this.load.image("building_wide", "assets/phase1/building_wide.png");
 
         // HUD / Leona
         this.load.image("heroPortrait", "assets/player/portrait.png");
@@ -76,6 +92,7 @@ export class Phase1 extends Phaser.Scene {
 
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
         this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
+        this.cameras.main.setZoom(1.08);
 
         this.levelComplete = false;
         this.isGameEnding = false;
@@ -294,7 +311,11 @@ export class Phase1 extends Phaser.Scene {
         this.verificarGatilhosFase();
 
         this.atualizarPlayer();
+        this.separarEntidadesDasCaixas();
+
         this.atualizarInimigos();
+        this.separarEntidadesDasCaixas();
+
         this.atualizarBoss();
         this.atualizarItens();
 
@@ -416,55 +437,108 @@ export class Phase1 extends Phaser.Scene {
 
         g.destroy();
     }
+  
+       criarCenario() {
+            this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0xdceeff)
+                .setOrigin(0, 0)
+                .setDepth(-300);
 
-  criarCenario() {
-    this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, 0x9fd7f5)
-        .setOrigin(0, 0)
-        .setDepth(-50);
+            // Céu simples atrás das fachadas.
+            // Quase não aparece, mas evita frestas.
+            this.layerSky = this.add.tileSprite(
+                0,
+                0,
+                1280,
+                720,
+                "phase1_sky"
+            )
+                .setOrigin(0, 0)
+                .setScrollFactor(0)
+                .setDepth(-260);
 
-    this.parallaxClouds = this.add.tileSprite(640, 120, 1280, 180, "parallaxClouds")
-        .setScrollFactor(0)
-        .setDepth(-45)
-        .setAlpha(0.55);
+            this.layerSky.setTileScale(1, 1);
 
-    this.parallaxSkyline = this.add.tileSprite(640, 220, 1280, 260, "parallaxSkyline")
-        .setScrollFactor(0)
-        .setDepth(-42)
-        .setAlpha(0.35);
+            // Fachadas principais: prédios + calçada.
+            // Ficam fixas no mundo, como nos beat 'em ups clássicos.
+            this.facadesPhase1 = [];
 
-    const larguraSegmento = this.worldWidth / 3;
+            const criarFachada = (key, x, baseY, largura, altura) => {
+                const img = this.add.image(x, baseY, key)
+                    .setOrigin(0, 1)
+                    .setDepth(-180);
 
-    this.add.image(0, 0, "phase1Bg1")
-        .setOrigin(0, 0)
-        .setDisplaySize(larguraSegmento, this.worldHeight)
-        .setDepth(-30);
+                img.setDisplaySize(largura, altura);
 
-    this.add.image(larguraSegmento, 0, "phase1Bg2")
-        .setOrigin(0, 0)
-        .setDisplaySize(larguraSegmento, this.worldHeight)
-        .setDepth(-30);
+                this.facadesPhase1.push(img);
 
-    this.add.image(larguraSegmento * 2, 0, "phase1Bg3")
-        .setOrigin(0, 0)
-        .setDisplaySize(larguraSegmento, this.worldHeight)
-        .setDepth(-30);
+                return img;
+            };
 
-    this.add.rectangle(0, 645, this.worldWidth, 75, 0x2b2b2b, 0.15)
-        .setOrigin(0, 0)
-        .setDepth(-10);
-}
+            // A imagem encosta no topo da rua.
+            // Se a calçada ficar muito baixa/alta, mexe só nesse valor.
+            const baseFachadaY = 535;
 
-    atualizarParallax() {
-        const scrollX = this.cameras.main.scrollX;
+            // Tamanho de cada bloco de fachada.
+            // Como suas imagens são largas, 1280 funciona bem.
+            const larguraBloco = 1280;
+            const alturaBloco = 520;
 
-        if (this.parallaxClouds) {
-            this.parallaxClouds.tilePositionX = scrollX * 0.15;
+            // Um pouco de sobreposição evita fresta entre uma imagem e outra.
+            const passo = 1260;
+
+            let x = 0;
+            let index = 0;
+
+            while (x < this.worldWidth + larguraBloco) {
+                const key = index % 2 === 0
+                    ? "phase1_facade_a"
+                    : "phase1_facade_b";
+
+                criarFachada(
+                    key,
+                    x,
+                    baseFachadaY,
+                    larguraBloco,
+                    alturaBloco
+                );
+
+                x += passo;
+                index++;
+            }
+
+            // Linha de contato entre calçada e rua.
+            // Ajuda a colar visualmente a fachada no road.
+            this.add.rectangle(0, 518, this.worldWidth, 8, 0x000000, 0.18)
+                .setOrigin(0, 0)
+                .setDepth(-100);
+
+            // ===== CHÃO ATUAL MANTIDO =====
+            this.layerRoad = this.add.tileSprite(
+                0,
+                520,
+                this.worldWidth,
+                200,
+                "phase1_road"
+            )
+                .setOrigin(0, 0)
+                .setDepth(-60);
+
+            this.add.rectangle(0, 680, this.worldWidth, 40, 0x000000, 0.08)
+                .setOrigin(0, 0)
+                .setDepth(-55);
         }
+      
 
-        if (this.parallaxSkyline) {
-            this.parallaxSkyline.tilePositionX = scrollX * 0.35;
+        atualizarParallax() {
+            const scrollX = this.cameras.main.scrollX;
+
+            if (this.layerSky) {
+                this.layerSky.tilePositionX = scrollX * 0.015;
+            }
+
+            // Fachadas e road ficam fixos no mundo.
+            // Isso dá o feel de beat 'em up clássico.
         }
-    }
 
         criarAudio() {
             const musicVolume = Number(localStorage.getItem("musicVolume") ?? 0.35);
@@ -874,10 +948,11 @@ pararEntidadesEmIdle() {
     }
 
     criarPlayer() {
+        
         this.leona = new LeonaPlayer(this, 250, 610, {
             worldWidth: this.worldWidth,
-            floorTop: 560,
-            floorBottom: 650,
+            floorTop: 520,
+            floorBottom: 670,
             alturaPlayer: 180
         });
 
@@ -886,64 +961,187 @@ pararEntidadesEmIdle() {
     }
 
     criarHUD() {
-        this.hudBg = this.add.rectangle(230, 55, 420, 95, 0x000000, 0.45)
-            .setStrokeStyle(2, 0xffffff)
+        const DEPTH = 10000;
+
+        [
+            this.hudBg,
+            this.hpText,
+            this.nameText,
+            this.infoText,
+            this.portrait,
+            this.portraitFrame,
+            this.nomeHud,
+            this.hpBarBg,
+            this.hpBarFill,
+
+            this.hudPortrait,
+            this.hudPortraitBg,
+            this.hudPortraitRing,
+            this.hudPortraitShadow,
+            this.hudName,
+            this.hudNameShadow,
+            this.hudBarShadow,
+            this.hudBarBg,
+            this.hudBarFillGlow,
+            this.hudBarFill,
+            this.hudBarShine,
+            this.hudBarFrame
+        ].forEach((obj) => {
+            if (obj && obj.destroy) obj.destroy();
+        });
+
+        // Com zoom 1.08, precisa descer um pouco o HUD.
+        const portraitX = 82;
+        const portraitY = 96;
+
+        const nameX = 132;
+        const nameY = 58;
+
+        const barX = 132;
+        const barY = 92;
+        const barW = 315;
+        const barH = 24;
+        const barR = 12;
+
+        this.playerHudMetrics = {
+            x: barX,
+            y: barY,
+            w: barW,
+            h: barH,
+            r: barR
+        };
+
+        // Retrato
+        this.hudPortraitShadow = this.add.circle(
+            portraitX + 3,
+            portraitY + 4,
+            32,
+            0x000000,
+            0.25
+        )
             .setScrollFactor(0)
-            .setDepth(9999);
+            .setDepth(DEPTH);
 
-        this.portraitFrame = this.add.circle(80, 55, 28, 0x222222)
-            .setStrokeStyle(2, 0xffffff)
+        this.hudPortraitBg = this.add.circle(
+            portraitX,
+            portraitY,
+            31,
+            0x19151d,
+            0.96
+        )
             .setScrollFactor(0)
-            .setDepth(9999);
+            .setDepth(DEPTH + 1);
 
-        this.portrait = this.add.image(80, 55, "heroPortrait")
+        this.hudPortraitRing = this.add.circle(
+            portraitX,
+            portraitY,
+            31
+        )
+            .setStrokeStyle(3, 0xfff2a8, 1)
             .setScrollFactor(0)
-            .setDepth(10000);
+            .setDepth(DEPTH + 2);
 
-        this.ajustarPortrait(this.portrait, 52, 52);
+        const portraitKey = this.textures.exists("heroPortrait")
+            ? "heroPortrait"
+            : this.textures.exists("leona_portrait")
+                ? "leona_portrait"
+                : this.textures.exists("portrait_leona")
+                    ? "portrait_leona"
+                    : this.textures.exists("leona_hud")
+                        ? "leona_hud"
+                        : null;
 
-        this.nomeHud = this.add.text(120, 25, "Leona", {
-            fontSize: "24px",
+        if (portraitKey) {
+            this.hudPortrait = this.add.image(
+                portraitX,
+                portraitY,
+                portraitKey
+            )
+                .setDisplaySize(50, 50)
+                .setScrollFactor(0)
+                .setDepth(DEPTH + 3);
+        }
+
+        // Nome
+        this.hudNameShadow = this.add.text(nameX + 2, nameY + 2, "Leona", {
+            fontFamily: "Georgia",
+            fontSize: "25px",
+            fontStyle: "bold",
+            color: "#000000"
+        })
+            .setAlpha(0.35)
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 1);
+
+        this.hudName = this.add.text(nameX, nameY, "Leona", {
+            fontFamily: "Georgia",
+            fontSize: "25px",
+            fontStyle: "bold",
             color: "#ffffff",
-            fontStyle: "bold"
-        }).setScrollFactor(0).setDepth(10000);
+            stroke: "#2d1d34",
+            strokeThickness: 5
+        })
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 2);
 
-        this.hpBarBg = this.add.graphics().setScrollFactor(0).setDepth(10000);
-        this.hpBarFill = this.add.graphics().setScrollFactor(0).setDepth(10000);
+        // Barra de vida
+        this.hudBarShadow = this.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 1);
 
-        this.hpText = this.add.text(120, 80, "", {
-            fontSize: "20px",
-            color: "#ffffff"
-        }).setScrollFactor(0).setDepth(10000);
+        this.hudBarBg = this.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 2);
 
-        this.infoText = this.add.text(
-            610,
-            25,
-            "Mover: WASD/Setas | J: combo | K: voadora",
-            {
-                fontSize: "18px",
-                color: "#ffffff"
-            }
-        ).setScrollFactor(0).setDepth(10000);
+        this.hudBarFillGlow = this.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 3);
 
-        this.bossHudBg = this.add.rectangle(930, 55, 470, 95, 0x000000, 0.45)
+        this.hudBarFill = this.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 4);
+
+        this.hudBarShine = this.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 5);
+
+        this.hudBarFrame = this.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 6);
+
+        // HUD do Boss continua existindo escondido
+        this.bossHudBg = this.add.rectangle(930, 55, 430, 70, 0x000000, 0.45)
             .setStrokeStyle(2, 0xffffff)
             .setScrollFactor(0)
-            .setDepth(9999)
+            .setDepth(DEPTH)
             .setVisible(false);
 
-        this.bossNameText = this.add.text(720, 25, "EISEN", {
-            fontSize: "24px",
+        this.bossNameText = this.add.text(735, 28, "EISEN", {
+            fontSize: "22px",
             color: "#ffffff",
-            fontStyle: "bold"
-        }).setScrollFactor(0).setDepth(10000).setVisible(false);
+            fontStyle: "bold",
+            stroke: "#000000",
+            strokeThickness: 4
+        })
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 1)
+            .setVisible(false);
 
-        this.bossHpBarBg = this.add.graphics().setScrollFactor(0).setDepth(10000);
-        this.bossHpBarFill = this.add.graphics().setScrollFactor(0).setDepth(10000);
-        this.bossHpText = this.add.text(720, 80, "", {
-            fontSize: "20px",
+        this.bossHpBarBg = this.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 1);
+
+        this.bossHpBarFill = this.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 2);
+
+        this.bossHpText = this.add.text(735, 74, "", {
+            fontSize: "16px",
             color: "#ffffff"
-        }).setScrollFactor(0).setDepth(10000).setVisible(false);
+        })
+            .setScrollFactor(0)
+            .setDepth(DEPTH + 2)
+            .setVisible(false);
 
         this.atualizarHUD();
     }
@@ -1221,10 +1419,11 @@ pararEntidadesEmIdle() {
     }
 
    spawnEnemy(x, y, tipo = "light") {
+        
         const enemy = new StageEnemy(this, x, y, tipo, {
             worldWidth: this.worldWidth,
-            floorTop: 560,
-            floorBottom: 650,
+            floorTop: 520,
+            floorBottom: 670,
             alturaEnemy: this.alturaEnemy
         });
 
@@ -1234,10 +1433,11 @@ pararEntidadesEmIdle() {
     }
 
     spawnBoss(x, y, exibirHud = false) {
+        
         this.boss = new BossPhase1(this, x, y, {
             worldWidth: this.worldWidth,
-            floorTop: 560,
-            floorBottom: 650,
+            floorTop: 520,
+            floorBottom: 660,
             alturaBoss: this.alturaBoss
         });
 
@@ -1255,12 +1455,21 @@ pararEntidadesEmIdle() {
             sprite,
             hp: 20,
             destroyed: false,
+
+            // Área de colisão fake 2.5D.
+            // Ajuste fino se a caixa parecer grande/pequena demais.
+            hitbox: {
+                width: 58,
+                depth: 38
+            },
+
             data: {
                 isDead: false,
                 isRemoving: false,
                 isBeingThrown: false,
                 isReturning: false
             },
+
             receberDano: (valor) => {
                 this.danoNaCaixa(box, valor);
                 return true;
@@ -1268,6 +1477,8 @@ pararEntidadesEmIdle() {
         };
 
         this.boxes.push(box);
+
+        return box;
     }
 
     spawnHealthItem(x, groundY, mode = "rise") {
@@ -1949,31 +2160,88 @@ pararEntidadesEmIdle() {
     }
 
     atualizarHUD() {
-        const x = 120;
-        const y = 50;
-        const largura = 280;
-        const altura = 22;
+        if (!this.playerHudMetrics) return;
+        if (!this.hudBarShadow || !this.hudBarBg || !this.hudBarFill) return;
 
-        this.hpBarBg.clear();
-        this.hpBarBg.fillStyle(0x222222, 1);
-        this.hpBarBg.fillRoundedRect(x, y, largura, altura, 8);
-        this.hpBarBg.lineStyle(2, 0xffffff, 1);
-        this.hpBarBg.strokeRoundedRect(x, y, largura, altura, 8);
+        const maxHp =
+            this.leona?.maxHp ??
+            this.player?.maxHp ??
+            this.playerMaxHp ??
+            100;
 
-        this.hpBarFill.clear();
-        this.hpBarFill.fillStyle(0xff3b30, 1);
-        const hpAtual = this.leona?.currentHp ?? 100;
-        const hpMax = this.leona?.maxHp ?? 100;
+        // Importante: sua Leona usa currentHp.
+        const currentHpRaw =
+            this.leona?.currentHp ??
+            this.leona?.hp ??
+            this.player?.currentHp ??
+            this.player?.hp ??
+            this.playerHp ??
+            maxHp;
 
-        this.hpBarFill.fillRoundedRect(
-            x + 3,
-            y + 3,
-            (largura - 6) * (hpAtual / hpMax),
-            altura - 6,
-            6
-        );
+        const currentHp = Phaser.Math.Clamp(currentHpRaw, 0, maxHp);
+        const ratio = maxHp > 0 ? currentHp / maxHp : 0;
 
-        this.hpText.setText(`${hpAtual} / ${hpMax}`);
+        const { x, y, w, h, r } = this.playerHudMetrics;
+
+        let fillColor = 0xff3b30;
+
+        if (ratio <= 0.30) {
+            fillColor = 0xffc107;
+        } else if (ratio <= 0.60) {
+            fillColor = 0xff8f1f;
+        }
+
+        const innerX = x + 3;
+        const innerY = y + 3;
+        const innerW = w - 6;
+        const innerH = h - 6;
+        const fillW = Math.max(0, innerW * ratio);
+
+        this.hudBarShadow.clear();
+        this.hudBarShadow
+            .fillStyle(0x000000, 0.28)
+            .fillRoundedRect(x + 4, y + 5, w, h, r);
+
+        this.hudBarBg.clear();
+        this.hudBarBg
+            .fillStyle(0x17131c, 0.96)
+            .fillRoundedRect(x, y, w, h, r);
+
+        this.hudBarFillGlow.clear();
+        if (fillW > 0) {
+            this.hudBarFillGlow
+                .fillStyle(fillColor, 0.25)
+                .fillRoundedRect(innerX - 1, innerY - 1, fillW + 2, innerH + 2, r - 2);
+        }
+
+        this.hudBarFill.clear();
+        if (fillW > 0) {
+            this.hudBarFill
+                .fillStyle(fillColor, 1)
+                .fillRoundedRect(innerX, innerY, fillW, innerH, r - 2);
+        }
+
+        this.hudBarShine.clear();
+        if (fillW > 12) {
+            this.hudBarShine
+                .fillStyle(0xffffff, 0.18)
+                .fillRoundedRect(
+                    innerX + 5,
+                    innerY + 2,
+                    Math.max(0, fillW - 10),
+                    Math.max(4, innerH * 0.35),
+                    r - 3
+                );
+        }
+
+        this.hudBarFrame.clear();
+        this.hudBarFrame
+            .lineStyle(3, 0xffffff, 0.9)
+            .strokeRoundedRect(x, y, w, h, r);
+
+        this.hudBarFrame
+            .lineStyle(1, 0x3e2c3f, 0.85)
+            .strokeRoundedRect(x + 2, y + 2, w - 4, h - 4, r - 2);
     }
 
     atualizarHUDInimigos() {
@@ -2012,13 +2280,16 @@ pararEntidadesEmIdle() {
 }
 
     atualizarBossHUD() {
+        // Segurança: se o HUD do boss ainda não foi criado, não quebra o jogo.
+        if (!this.bossHpBarBg || !this.bossHpBarFill) return;
+
         this.bossHpBarBg.clear();
         this.bossHpBarFill.clear();
 
         if (!this.boss || this.boss.data.isDead || !this.bossFightStarted) {
-            this.bossHudBg.setVisible(false);
-            this.bossNameText.setVisible(false);
-            this.bossHpText.setVisible(false);
+            this.bossHudBg?.setVisible(false);
+            this.bossNameText?.setVisible(false);
+            this.bossHpText?.setVisible(false);
             return;
         }
 
