@@ -19,6 +19,7 @@ export class Phase1 extends Phaser.Scene {
         // Fachadas + calçada
         this.load.image("phase1_facade_a", "assets/phase1/cenario1.jpg");
         this.load.image("phase1_facade_b", "assets/phase1/cenario2.png");
+        this.load.image("barrelBox", "assets/phase1/barril.png");
 
         // Chão atual da Phase1 — manter
         this.load.image("phase1_road", "assets/phase1/phase2_road.png");
@@ -1448,38 +1449,117 @@ pararEntidadesEmIdle() {
         return this.boss;
     }
 
-    spawnBox(x, y) {
-        const sprite = this.add.image(x, y, "crateBox").setOrigin(0.5, 1);
+    separarEntidadesDasCaixas() {
+        if (!this.boxes || this.boxes.length === 0) return;
 
-        const box = {
-            sprite,
-            hp: 20,
-            destroyed: false,
+        const entidades = [];
 
-            // Área de colisão fake 2.5D.
-            // Ajuste fino se a caixa parecer grande/pequena demais.
-            hitbox: {
-                width: 58,
-                depth: 38
-            },
+        if (this.leona?.sprite?.active && !this.leona.isDead) {
+            entidades.push({
+                sprite: this.leona.sprite,
+                tipo: "player"
+            });
+        }
 
-            data: {
-                isDead: false,
-                isRemoving: false,
-                isBeingThrown: false,
-                isReturning: false
-            },
+        this.enemies.forEach((enemy) => {
+            if (!enemy?.sprite?.active) return;
+            if (enemy.data?.isDead || enemy.data?.isRemoving) return;
+            if (enemy.data?.isBeingThrown || enemy.data?.isReturning) return;
 
-            receberDano: (valor) => {
-                this.danoNaCaixa(box, valor);
-                return true;
-            }
-        };
+            entidades.push({
+                sprite: enemy.sprite,
+                tipo: "enemy"
+            });
+        });
 
-        this.boxes.push(box);
+        if (this.boss?.sprite?.active && !this.boss.data?.isDead) {
+            entidades.push({
+                sprite: this.boss.sprite,
+                tipo: "boss"
+            });
+        }
 
-        return box;
+        entidades.forEach((entidade) => {
+            const sprite = entidade.sprite;
+
+            this.boxes.forEach((box) => {
+                if (!box || box.destroyed || !box.sprite?.active) return;
+
+                const boxSprite = box.sprite;
+
+                const boxWidth = box.hitbox?.width ?? 58;
+                const boxDepth = box.hitbox?.depth ?? 38;
+
+                const dx = sprite.x - boxSprite.x;
+                const dy = sprite.y - boxSprite.y;
+
+                const overlapX = (boxWidth / 2) + 24 - Math.abs(dx);
+                const overlapY = boxDepth - Math.abs(dy);
+
+                const colidindo =
+                    overlapX > 0 &&
+                    overlapY > 0;
+
+                if (!colidindo) return;
+
+                // Empurra pelo menor eixo para não ficar tremendo.
+                if (overlapX < overlapY) {
+                    const dirX = dx >= 0 ? 1 : -1;
+                    sprite.x += dirX * (overlapX + 2);
+
+                    if (sprite.body) {
+                        sprite.body.setVelocityX(0);
+                    }
+                } else {
+                    const dirY = dy >= 0 ? 1 : -1;
+                    sprite.y += dirY * (overlapY + 2);
+
+                    if (sprite.body) {
+                        sprite.body.setVelocityY(0);
+                    }
+                }
+
+                // Mantém dentro da área jogável.
+                sprite.x = Phaser.Math.Clamp(sprite.x, 30, this.worldWidth - 30);
+                sprite.y = Phaser.Math.Clamp(sprite.y, 520, 670);
+            });
+        });
     }
+
+     spawnBox(x, y) {
+            const sprite = this.add.image(x, y, "barrelBox").setOrigin(0.5, 1);
+
+            // Barril maior e um pouco mais largo
+            sprite.setDisplaySize(72, 112);
+
+            const box = {
+                sprite,
+                hp: 25,
+                destroyed: false,
+
+                // Hitbox ajustada para combinar com o tamanho novo
+                hitbox: {
+                    width: 58,
+                    depth: 40
+                },
+
+                data: {
+                    isDead: false,
+                    isRemoving: false,
+                    isBeingThrown: false,
+                    isReturning: false
+                },
+
+                receberDano: (valor) => {
+                    this.danoNaCaixa(box, valor);
+                    return true;
+                }
+            };
+
+            this.boxes.push(box);
+
+            return box;
+        }
 
     spawnHealthItem(x, groundY, mode = "rise") {
         const sprite = this.add.image(x, mode === "fall" ? -30 : groundY + 10, "snackItem")
@@ -1657,9 +1737,9 @@ pararEntidadesEmIdle() {
         this.tweens.add({
             targets: box.sprite,
             alpha: 0,
-            angle: Phaser.Math.Between(-15, 15),
-            scaleX: 1.15,
-            scaleY: 1.15,
+            angle: Phaser.Math.Between(-18, 18),
+            scaleX: box.sprite.scaleX * 1.12,
+            scaleY: box.sprite.scaleY * 1.12,
             duration: 180,
             onComplete: () => {
                 const itemY = Phaser.Math.Clamp(box.sprite.y - 4, 580, 645);
@@ -2375,7 +2455,10 @@ pararEntidadesEmIdle() {
 
         this.boxes.forEach((box) => {
             if (box.sprite && box.sprite.active) {
-                box.sprite.setDepth(box.sprite.y - 5);
+                // Caixa participa da profundidade como objeto do cenário.
+                // Se personagem está abaixo dela, personagem aparece na frente.
+                // Se está acima, caixa aparece na frente.
+                box.sprite.setDepth(box.sprite.y);
             }
         });
 

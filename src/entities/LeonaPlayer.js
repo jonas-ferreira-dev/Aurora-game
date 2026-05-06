@@ -934,42 +934,95 @@ export class LeonaPlayer {
         this.inAction = true;
         this.isPunching = false;
         this.comboWaitingForInput = false;
+        this.isJumping = false;
+        this.isAirKicking = false;
 
         if (this.comboWaitEvent) {
             this.comboWaitEvent.remove(false);
             this.comboWaitEvent = null;
         }
 
+        if (this.jumpTween) {
+            this.jumpTween.stop();
+            this.jumpTween = null;
+        }
+
+        this.scene.tweens.killTweensOf(this.sprite);
+
+        // Usa o eixo real do chão, não o Y atual do sprite.
+        // Isso impede ela de morrer "pra cima" quando estava pulando ou deslocada.
+        const groundY = Phaser.Math.Clamp(
+            this.jumpGroundY !== null ? this.jumpGroundY : this.sprite.y,
+            this.floorTop,
+            this.floorBottom
+        );
+
+        this.jumpGroundY = null;
+        this.jumpOffset = { y: 0 };
+
         this.sprite.setVelocity(0, 0);
+        this.sprite.setAngle(0);
+        this.sprite.setY(groundY);
         this.sprite.anims.stop();
         this.sprite.setTexture("leona_damage");
         this.ajustarEscalaSprite();
 
         this.scene.tocarSom?.(this.scene.sfxDeath, true);
 
+        // Se o golpe veio da esquerda, Leona é jogada para a direita.
+        // Se veio da direita, é jogada para a esquerda.
         const direcao = origemX !== null && origemX < this.sprite.x ? 1 : -1;
+
         const xBase = this.sprite.x;
-        const yBase = this.sprite.y;
+        const yBase = groundY;
+
+        const xPico = Phaser.Math.Clamp(
+            xBase + direcao * 95,
+            40,
+            this.worldWidth - 40
+        );
+
+        const xFinal = Phaser.Math.Clamp(
+            xBase + direcao * 170,
+            40,
+            this.worldWidth - 40
+        );
+
+        // Mesmo eixo/lane da fase.
+        // Ela sobe só no arco, mas termina no mesmo Y.
+        const yPico = Phaser.Math.Clamp(
+            yBase - 58,
+            this.floorTop,
+            this.floorBottom
+        );
+
+        const yFinal = yBase;
 
         this.scene.tweens.add({
             targets: this.sprite,
-            x: xBase + direcao * 54,
-            y: yBase - 28,
-            duration: 150,
+            x: xPico,
+            y: yPico,
+            duration: 170,
             ease: "Quad.Out",
             onComplete: () => {
-                if (!this.sprite.active) return;
+                if (!this.sprite || !this.sprite.active) return;
 
                 this.sprite.play("leona_death", true);
                 this.ajustarEscalaSprite();
 
                 this.scene.tweens.add({
                     targets: this.sprite,
-                    x: xBase + direcao * 82,
-                    y: Phaser.Math.Clamp(yBase + 18, this.floorTop, this.floorBottom),
-                    duration: 280,
+                    x: xFinal,
+                    y: yFinal,
+                    duration: 330,
                     ease: "Quad.In",
                     onComplete: () => {
+                        if (!this.sprite || !this.sprite.active) return;
+
+                        this.sprite.setVelocity(0, 0);
+                        this.sprite.setAngle(0);
+                        this.sprite.y = yFinal;
+
                         this.scene.events.emit("player:dead");
                     }
                 });
